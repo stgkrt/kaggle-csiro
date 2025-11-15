@@ -1,0 +1,8 @@
+stochastic_weight_averaging:
+  _target_: pytorch_lightning.callbacks.StochasticWeightAveraging
+  # The number of epochs to wait before averaging the weights.
+  swa_lrs: 1e-4
+  swa_epoch_start: 0.5
+  annealing_epochs: 3
+  annealing_strategy: "cos"
+  device: cuda

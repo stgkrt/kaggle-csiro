@@ -1,0 +1,44 @@
+_target_: src.model.model_module.ModelModule
+
+model_architectures:
+  _target_: src.model.architectures.model_architectures.ModelArchitectures
+  model_config:
+    model_name: public_model
+    pad_len: 127
+    imu_dim: 11
+    tof_dim: 25
+    n_classes: 18
+
+criterion:
+  _target_: src.model.losses.LossModule
+  loss_config:
+    loss_name: "weighted_cross_entropy"
+    pos_weight: 1.0
+    target_gesture_dict_path: "/kaggle/working/encoders/target_non_target_gesture_le.pkl"
+    aux_weight: 0.2
+
+metrics:
+  _target_ :  src.metrics.competition_metrics.CompetitionMetrics
+  # target_gesture_classes: 18
+  # is_target_non_target_path: "/kaggle/working/encoders/target_non_target_gesture_le.pkl"
+  target_le_dict_path: "/kaggle/working/encoders/inverse_gesture_dict.pkl"
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 2e-4
+  weight_decay: 1e-3
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+  _partial_: true
+  T_0: ${trainer.max_epochs}
+  T_mult: 1
+  eta_min: 1e-9
+  last_epoch: -1
+  verbose: false
+
+
+compile: false
+
+oof_dir: ${dir.output_dir}

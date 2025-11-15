@@ -1,0 +1,41 @@
+{
+    "name": "kaggle-deps",
+    "dockerFile": "Dockerfile",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/kaggle,type=bind",
+    "workspaceFolder": "/kaggle",
+    "runArgs": [
+        "--gpus",
+        "all",
+        "--shm-size",
+        "60gb"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.mypy-type-checker",
+                "yzhang.markdown-all-in-one",
+                "tamasfe.even-better-toml",
+                "redhat.vscode-yaml",
+                "ms-toolsai.jupyter",
+                "charliermarsh.ruff"
+            ],
+            "settings": {
+                "editor.formatOnSave": true,
+                "notebook.formatOnSave.enabled": true,
+                "[python]": {
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": "explicit"
+                    }
+                },
+                "python.formatting.provider": "charliermarsh.ruff",
+                "editor.defaultFormatter": "charliermarsh.ruff",
+                "notebook.defaultFormatter": "charliermarsh.ruff"
+            }
+        }
+    },
+    "postAttachCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+    "postCreateCommand": "sh script/setup_dev.sh"
+}
