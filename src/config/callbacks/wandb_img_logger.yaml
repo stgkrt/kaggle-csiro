@@ -1,5 +1,0 @@
-wandb_img_logger:
-  _target_: src.callbacks.wandb_imglog_callback.ImageSegmentationLogger
-  # val_samples: None
-  num_samples: 5
-  log_interval: 500

@@ -1,111 +1,100 @@
-from pathlib import Path
+from typing import Dict
 
-import joblib
-import pandas as pd
+import numpy as np
 import torch
-from sklearn.metrics import f1_score
-from torchmetrics.classification import BinaryF1Score, MulticlassF1Score
 
 
-def compute_f1_scores(self, sol, sub, target_gestures):
-    # Compute binary F1 (Target vs Non-Target)
-    y_true_bin = sol["gesture"].isin(target_gestures).values
-    y_pred_bin = sub["gesture"].isin(target_gestures).values
-    f1_binary = f1_score(
-        y_true_bin, y_pred_bin, pos_label=True, zero_division=0, average="binary"
-    )
+def weighted_r2_score(y_true: np.ndarray, y_pred: np.ndarray):
+    """
+    y_true, y_pred: shape (N, 5)
+    """
+    weights = np.array([0.1, 0.1, 0.1, 0.2, 0.5])
+    r2_scores = []
+    for i in range(5):
+        y_t = y_true[:, i]
+        y_p = y_pred[:, i]
+        ss_res = np.sum((y_t - y_p) ** 2)
+        ss_tot = np.sum((y_t - np.mean(y_t)) ** 2)
+        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+        r2_scores.append(r2)
+    r2_scores = np.array(r2_scores)
+    weighted_r2 = np.sum(r2_scores * weights) / np.sum(weights)
+    return weighted_r2, r2_scores
 
-    # Build multi-class labels for gestures
-    y_true_mc = sol["gesture"].apply(
-        lambda x: x if x in self.target_gestures else "non_target"
-    )
-    y_pred_mc = sub["gesture"].apply(
-        lambda x: x if x in self.target_gestures else "non_target"
-    )
 
-    # Compute macro F1 over all gesture classes
-    f1_macro = f1_score(y_true_mc, y_pred_mc, average="macro", zero_division=0)
-
-    return 0.5 * f1_binary + 0.5 * f1_macro
+def weighted_r2_score_torch(y_true: torch.Tensor, y_pred: torch.Tensor):
+    """
+    y_true, y_pred: shape (N, 5)
+    """
+    weights = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.5], device=y_true.device)
+    r2_scores = []
+    for i in range(5):
+        y_t = y_true[:, i]
+        y_p = y_pred[:, i]
+        ss_res = torch.sum((y_t - y_p) ** 2)
+        ss_tot = torch.sum((y_t - torch.mean(y_t)) ** 2)
+        r2 = (
+            1 - ss_res / ss_tot
+            if ss_tot > 0
+            else torch.tensor(0.0, device=y_true.device)
+        )
+        r2_scores.append(r2)
+    r2_scores = torch.stack(r2_scores)
+    weighted_r2 = torch.sum(r2_scores * weights) / torch.sum(weights)
+    return weighted_r2, r2_scores
 
 
 class CompetitionMetrics:
-    def __init__(self, inverse_gesture_dict_path: Path) -> None:
-        self.target_gestures = [
-            "Above ear - pull hair",
-            "Cheek - pinch skin",
-            "Eyebrow - pull hair",
-            "Eyelash - pull hair",
-            "Forehead - pull hairline",
-            "Forehead - scratch",
-            "Neck - pinch skin",
-            "Neck - scratch",
-        ]
-        self.non_target_gestures = [
-            "Write name on leg",
-            "Wave hello",
-            "Glasses on/off",
-            "Text on phone",
-            "Write name in air",
-            "Feel around in tray and pull out an object",
-            "Scratch knee/leg skin",
-            "Pull air toward your face",
-            "Drink from bottle/cup",
-            "Pinch knee/leg skin",
-        ]
-        self.all_classes = self.target_gestures + self.non_target_gestures
-        self.target_le_dict = joblib.load(inverse_gesture_dict_path)
+    def __init__(self):
+        pass
 
     def __call__(
         self,
         y_true: torch.Tensor,
         y_pred: torch.Tensor,
-    ) -> float:
+    ) -> Dict[str, float]:
         y_true = y_true.clone()
         y_pred = y_pred.clone()
-        # y_true and y_pred are in target_gesture or not 1 else 0
-        y_true = torch.argmax(y_true, dim=1)
-        y_pred = torch.argmax(y_pred, dim=1)
-        y_true = y_true.detach().cpu().numpy()
-        y_pred = y_pred.detach().cpu().numpy()
-        y_true_gestures = [self.target_le_dict[x] for x in y_true]
-        y_pred_gestures = [self.target_le_dict[x] for x in y_pred]
-        solution = pd.DataFrame({"gesture": y_true_gestures})
-        submission = pd.DataFrame({"gesture": y_pred_gestures})
-        y_true_bin = solution["gesture"].isin(self.target_gestures).values
-        y_pred_bin = submission["gesture"].isin(self.target_gestures).values
-        f1_binary = f1_score(
-            y_true_bin, y_pred_bin, pos_label=True, zero_division=0, average="binary"
-        )
-        # Build multi-class labels for gestures
-        y_true_mc = [
-            x if x in self.target_gestures else "non_target"
-            for x in solution["gesture"]
-        ]
-        y_pred_mc = [
-            x if x in self.target_gestures else "non_target"
-            for x in submission["gesture"]
-        ]
-        # Compute macro F1 over all gesture classes
-        f1_macro = f1_score(y_true_mc, y_pred_mc, average="macro", zero_division=0)
-        self.binary_f1 = f1_binary
-        self.macro_f1 = f1_macro
-        metrics_value = 0.5 * f1_binary + 0.5 * f1_macro
-        return metrics_value
+        metrics_value, r2_scores = weighted_r2_score_torch(y_true, y_pred)
+        metrics_dict = {
+            "weighted_r2": metrics_value.numpy(),
+            "r2_Dry_Clover_g": r2_scores[0].numpy(),
+            "r2_Dry_Dead_g": r2_scores[1].numpy(),
+            "r2_Dry_Green_g": r2_scores[2].numpy(),
+            "r2_Dry_Total_g": r2_scores[3].numpy(),
+            "r2_GDM_g": r2_scores[4].numpy(),
+        }
+        return metrics_dict
+
+    def calculate_diff(
+        self,
+        y_true: torch.Tensor,
+        y_pred: torch.Tensor,
+    ) -> torch.Tensor:
+        y_true = y_true.clone()
+        y_pred = y_pred.clone()
+        diffs = y_true - y_pred
+        return diffs
 
 
 if __name__ == "__main__":
-    inverse_gesture_dict_path = Path(
-        "/kaggle/working/encoders/inverse_gesture_dict.pkl"
+    y_true = torch.tensor(
+        [
+            [10.0, 20.0, 30.0, 40.0, 50.0],
+            [15.0, 25.0, 35.0, 45.0, 55.0],
+            [20.0, 30.0, 40.0, 50.0, 60.0],
+        ]
     )
-    metrics = CompetitionMetrics(inverse_gesture_dict_path=inverse_gesture_dict_path)
-    batch_size = 64
-    class_num = 18
-    y_true = torch.randint(0, 19, (batch_size, class_num))
-    y_pred = torch.randint(0, 19, (batch_size, class_num))
-    metrics_value = metrics(y_true, y_pred)
-    print(f"Competition metrics value: {metrics_value:.4f}")
-    # print(f"Binary F1: {metrics.binary_f1.compute():.4f}")
-    # print(f"Macro F1: {metrics.macro_f1.compute():.4f}")
-    print(f"Binary F1: {metrics.binary_f1:.4f}")
-    print(f"Macro F1: {metrics.macro_f1:.4f}")
+    y_pred = torch.tensor(
+        [
+            [12.0, 18.0, 29.0, 41.0, 52.0],
+            [14.0, 27.0, 33.0, 44.0, 57.0],
+            [19.0, 31.0, 39.0, 49.0, 61.0],
+        ]
+    )
+
+    metric = CompetitionMetrics()
+    score = metric(y_true, y_pred)
+    diffs = metric.calculate_diff(y_true, y_pred)
+    print(score)
+    print(diffs)

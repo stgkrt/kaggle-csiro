@@ -104,16 +104,6 @@ class CutMixup:
         x_for_mix = self._adjust_length(x_for_mix, x_input)
 
         mixed_x = x_input.copy()
-        # -1 or 0(データがない部分)の個数を数える
-        # not_data_count = np.sum(
-        #     x_for_mix[self.cutmixup_range_min : self.cutmixup_range_max] - 1 <= 1e-6
-        # )
-        # not_data_count = np.sum(
-        #     x_for_mix[self.cutmixup_range_min : self.cutmixup_range_max] <= 1e-6
-        # )
-        # cut_size = self.cutmixup_range_max - self.cutmixup_range_min + 1
-        # data_rate = (cut_size - not_data_count) / cut_size
-        # self.label_rate = (cut_size * data_rate) / len(x_input)
         cut_size = self.cutmixup_range_max - self.cutmixup_range_min + 1
         self.label_rate = cut_size / len(x_input)
         mixed_x[self.cutmixup_range_min : self.cutmixup_range_max] = x_for_mix[

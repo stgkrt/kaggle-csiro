@@ -1,154 +1,166 @@
-from dataclasses import dataclass
 from pathlib import Path
+from typing import List, Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass
-class DirConfig:
-    data_dir: Path
-    processed_dir: Path
-    output_dir: Path
+class TrainerConfig(BaseSettings):
+    default_root_dir: Path = Path("kaggle/working")
+    min_epochs: int = 1
+    max_epochs: int = 100
+    accelerator: str = "gpu"
+    gradient_clip_val: float = 2.0
+    gradient_clip_algorithm: str = "norm"
+    check_val_every_n_epoch: int = 1
+    compile: bool = True
+    devices: int = 1
+    deterministic: bool = True
+    # optimizer scheduler params
+    lr: float = 2e-4
+    weight_decay: float = 1e-3
+    scheduler_eta_min: float = 1e-9
+    scheduler_t_mult: int = 1
+    ema_decay: float = 0.998  # EMA decay rate
+    ema_enable: bool = True  # Whether to enable EMA
 
 
-@dataclass
-class AugConfig:
-    _target_: str
-    p: float
+class ModelConfig(BaseSettings):
+    model_name: str = "simple_model"
+    backbone_name: str = "tf_efficientnet_b0"
+    pretrained: bool = True
+
+    in_channels: int = 3
+    n_classes: int = 5
 
 
-@dataclass
-class SplitConfig:
-    train_num: int
-    valid_num: int
-    test_num: int
+class LossConfig(BaseSettings):
+    loss_name: str = "mse_loss"
+    pos_weight: Optional[float] = 10.0
 
 
-@dataclass
-class DatasetConfig:
-    _target_: str
-    dataset_name: str
-    df_path: Path
-    batch_size: int
-    num_workers: int
-    pin_memory: bool
-    splits: SplitConfig | None
-    train_transforms: list[AugConfig] | None
-    valid_transforms: list[AugConfig] | None
+class AugmentationConfig(BaseSettings):
+    random_crop: bool = True
+    crop_size: int = 128
+    crop_prob: float = 0.5
+    horizontal_flip: bool = True
+    hflip_prob: float = 0.5
+    vertical_flip: bool = False
+    vflip_prob: float = 0.5
+    resize: bool = True
+    resize_img_height: int = 128
+    resize_img_width: int = 256
 
 
-@dataclass
-class OptimizerConfig:
-    lr: float
-    weight_decay: float
-    num_warmup_steps: int
+class DatasetConfig(BaseSettings):
+    dataset_name: str = "simple"
+    data_root_dir: Path = Path("/kaggle/input/csiro-biomass/")
+    df_path: Path = Path("/kaggle/input/csiro-biomass/train.csv")
+    # target_cols: List[str] = [
+    #     "Dry_Green_g",
+    #     "Dry_Dead_g",
+    #     "Dry_Clover_g",
+    #     "GDM_g",
+    #     "Dry_Total_g",
+    # ]
+    batch_size: int = 64
+    num_workers: int = 2
+    pin_memory: bool = True
+
+    # Mixup configuration
+    mixup_prob: float = 0.2
+    mixup_alpha: float = 0.2
+    mixup_max_len_rate: float = 0.15
+
+    # Augmentation configuration
+    augmentation: AugmentationConfig = Field(default_factory=AugmentationConfig)
 
 
-@dataclass
-class SchedulerConfig:
-    mode: str
-    factor: float
-    patience: int
+class SplitConfig(BaseSettings):
+    fold: int = 0
+    split_dir: Path = Path("/kaggle/working/splits")
+    train_ids: List[str] = Field(default_factory=list)
+    valid_ids: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class LossConfig:
-    loss_name: str
-    pos_weight: float | None
-    target_gesture_dict_path: Path | None
-    aux_weight: float | None
+class LoggerConfig(BaseSettings):
+    project: str = "CSIRO"
+    name: Optional[str] = None
+    offline: bool = True
+    save_dir: Path = Path(".")
 
 
-@dataclass
-class ModelConfig:
-    _target_: str
-    model_name: str
-    pad_len: int
-    imu_dim: int
-    tof_dim: int
-    thm_dim: int
-    n_classes: int
-    loss_config: LossConfig
-    optimizer: OptimizerConfig
-    scheduler: SchedulerConfig
-    default_emb_dim: int = 32
-    layer_num: int = 5
+class CallbacksConfig(BaseSettings):
+    model_checkpoint: bool = True
+    early_stopping: bool = False
+    lr_monitor: bool = True
+    progress_bar: bool = True
 
 
-@dataclass
-class EarlyStoppingConfig:
-    _target_: str
-    monitor: str
-    min_delta: float
-    patience: int
-    mode: str
-    strict: bool
-    check_finite: bool
-    stopping_threshold: float
-    divergence_threshold: float
-    check_on_train_epoch_end: bool
+class Config(BaseSettings):
+    model_config = SettingsConfigDict(cli_parse_args=True)
+    # Basic settings
+    competition_name: str = "CSIRO"
+    notes: Optional[str] = None
+    seed: int = 42
+    exp_name: str = "debug"
+    fold: int = 0
+    img_size: int = 128
+
+    ckpt_path: Optional[Path] = None
+    tags: str = "public 0.0"
+
+    # Sub-configurations
+    trainer: TrainerConfig = Field(default_factory=TrainerConfig)
+    model: ModelConfig = Field(default_factory=ModelConfig)
+    loss: LossConfig = Field(default_factory=LossConfig)
+    augmentation: AugmentationConfig = Field(default_factory=AugmentationConfig)
+    dataset: DatasetConfig = Field(default_factory=DatasetConfig)
+    split: SplitConfig = Field(default_factory=SplitConfig)
+    logger: LoggerConfig = Field(default_factory=LoggerConfig)
+    callbacks: CallbacksConfig = Field(default_factory=CallbacksConfig)
 
 
-@dataclass
-class ModelcheckpointConfig:
-    _target_: str
-    dirpath: str
-    filename: str
-    monitor: str
-    verbose: bool
-    save_last: bool
-    save_top_k: int
-    mode: str
-    auto_insert_metric_name: bool
-    every_n_val_epochs: int
-    train_time_interval: int
-    every_n_epochs: int
-    save_on_train_epoch_end: bool
+def create_config_from_args() -> Config:
+    """Create configuration from command line arguments using pydantic_argparse"""
+    # config = ArgumentParser().parse_args()
+    train_config = TrainerConfig()
+    model_config = ModelConfig()
+    loss_config = LossConfig()
+    aug_config = AugmentationConfig()
+    dataset_config = DatasetConfig()
+    split_config = SplitConfig()
+    logger_config = LoggerConfig()
+    callbacks_config = CallbacksConfig()
+    config = Config(
+        trainer=train_config,
+        model=model_config,
+        loss=loss_config,
+        augmentation=aug_config,
+        dataset=dataset_config,
+        split=split_config,
+        logger=logger_config,
+        callbacks=callbacks_config,
+    )
+    return config
 
 
-@dataclass
-class ModelSummaryConfig:
-    _target_: str
-    max_depth: int
-
-
-@dataclass
-class RichProgressbar:
-    _target_: str
-
-
-@dataclass
-class Callbacks:
-    early_stopping: EarlyStoppingConfig
-    modelcheckpoint: ModelcheckpointConfig
-    model_summary: ModelSummaryConfig
-    rich_progressbar: RichProgressbar
-
-
-@dataclass
-class LoggerConfig:
-    _target_: str
-
-
-@dataclass
-class TrainerConfig:
-    epochs: int
-    accelerator: str
-    use_amp: bool
-    debug: bool
-    gradient_clip_val: float
-    accumulate_grad_batches: int
-    monitor: str
-    monitor_mode: str
-    check_val_every_n_epoch: int
-
-
-@dataclass
-class TrainConfig:
-    exp_name: str
-    seed: int
-    ckpt_path: str
-    dir: DirConfig
-    model: ModelConfig
-    dataset: DatasetConfig
-    trainer: TrainerConfig
-    callbacks: Callbacks
-    logger: LoggerConfig
+if __name__ == "__main__":
+    config = create_config_from_args()
+    print(config)
+    print("----- Trainer Config -----")
+    print(config.trainer)
+    print("----- Model Config -----")
+    print(config.model)
+    print("----- Dataset Config -----")
+    print(config.dataset)
+    print("----- Loss Config -----")
+    print(config.loss)
+    print("----- Augmentation Config -----")
+    print(config.augmentation)
+    print("----- Split Config -----")
+    print(config.split)
+    print("----- Logger Config -----")
+    print(config.logger)
+    print("----- Callbacks Config -----")
+    print(config.callbacks)

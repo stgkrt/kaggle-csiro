@@ -2,15 +2,12 @@ import os
 from pathlib import Path
 from typing import Any
 
-import joblib
 import polars as pl
 import pytorch_lightning as L
 import torch
-from sklearn.metrics import f1_score
 from timm.utils import ModelEmaV2
 from torchmetrics import MeanMetric
 
-from src.log_utils.pylogger import RankedLogger
 from src.metrics.competition_metrics import CompetitionMetrics
 from src.model.architectures.model_architectures import ModelArchitectures
 from src.model.losses import LossModule
@@ -37,27 +34,21 @@ class ModelModule(L.LightningModule):
         self.model = model_architectures
         self.criterion = criterion
         self.metrics = metrics
-        self.best_metrics = -torch.inf
-        self.oof_dir = oof_dir
-        self.lr = lr
-        self.weight_decay = weight_decay
-        self.max_epochs = max_epochs
-        self.scheduler_t_0 = scheduler_t_0
-        self.scheduler_t_mult = scheduler_t_mult
-        self.scheduler_eta_min = scheduler_eta_min
-        self.ema_decay = ema_decay
-        self.ema_enable = ema_enable
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
-        self.save_hyperparameters(logger=False)
+        self.save_hyperparameters(
+            logger=False, ignore=["model_architectures", "criterion", "metrics"]
+        )
+        self.oof_dir = oof_dir
+        os.makedirs(self.oof_dir, exist_ok=True)
 
         self.train_loss = MeanMetric()
         self.valid_loss = MeanMetric()
 
         # EMA初期化
-        if self.ema_enable:
-            self.model_ema = ModelEmaV2(self.model, decay=self.ema_decay)
+        if self.hparams.ema_enable:
+            self.model_ema = ModelEmaV2(self.model, decay=self.hparams.ema_decay)
         else:
             self.model_ema = None
         # validの予測値と正解値を保存するための変数(device設定)
@@ -85,7 +76,6 @@ class ModelModule(L.LightningModule):
         preds = outputs["logits"]  # model output logits
         labels = targets["labels"]  # one-hot encoded labels
         loss = self.criterion(outputs, targets)  # calculate loss
-        # preds = torch.argmax(logits, dim=1)
         return loss, preds, labels
 
     def model_step_ema(
@@ -93,12 +83,10 @@ class ModelModule(L.LightningModule):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Model step with EMA."""
         inputs, targets = batch
-        # EMAモデルでの推論
         outputs = self.model_ema.module(inputs)  # type: ignore
         preds = outputs["logits"]  # model output logits
         labels = targets["labels"]  # one-hot encoded labels
         loss = self.criterion(outputs, targets)  # calculate loss
-        # preds = torch.argmax(logits, dim=1)
         return loss, preds, labels
 
     def training_step(
@@ -106,7 +94,7 @@ class ModelModule(L.LightningModule):
         batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]],
         batch_idx: int,
     ) -> torch.Tensor:
-        loss, preds, labels = self.model_step(batch)
+        loss, _, _ = self.model_step(batch)
         self.train_loss(loss)
         self.log(
             "train_loss",
@@ -125,7 +113,6 @@ class ModelModule(L.LightningModule):
     def validation_step(
         self, batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ) -> torch.Tensor:
-        # EMAモデルでの推論
         if self.model_ema is not None:
             loss, preds, labels = self.model_step_ema(batch)
         else:
@@ -147,88 +134,69 @@ class ModelModule(L.LightningModule):
     def on_train_epoch_end(self) -> None:
         valid_labels = self.valid_labels.cpu()
         valid_preds = self.valid_preds.cpu()
-        if valid_preds.shape[-1] == 18:
-            metrics = self.metrics(valid_labels, valid_preds)
-            self.log(
-                "competition_metrics",
-                metrics,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
-            f1_macro = self.metrics.macro_f1
-            f1_binary = self.metrics.binary_f1
-            self.log(
-                "val/f1_macro",
-                f1_macro,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
-            self.log(
-                "val/f1_binary",
-                f1_binary,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
-            self.save_best(metrics)
-            accuracy = (
-                (valid_preds.argmax(dim=1) == valid_labels.argmax(dim=1)).float().mean()
-            )
-            self.log(
-                "val/accuracy",
-                accuracy,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
+        metrics = self.metrics(valid_labels, valid_preds)
+        self.log(
+            "competition_metrics",
+            metrics["weighted_r2"],
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
-            # preds/labelsの初期化
-            oof = pl.DataFrame(
-                {
-                    **{
-                        f"pred_{i}": self.valid_preds[:, i].cpu().numpy()
-                        for i in range(self.valid_preds.shape[-1])
-                    },
-                    **{
-                        f"target_{i}": self.valid_labels[:, i].cpu().numpy()
-                        for i in range(self.valid_labels.shape[-1])
-                    },
-                }
-            )
-        else:
-            valid_labels = valid_labels.numpy()
-            valid_preds = valid_preds.numpy()
-            valid_labels_idx = valid_labels.argmax(axis=1)
-            valid_preds_idx = valid_preds.argmax(axis=1)
-            metrics = f1_score(valid_labels_idx, valid_preds_idx, average="macro")
-            self.log(
-                "val/f1_macro",
-                metrics,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
-            self.save_best(metrics)
-            oof = pl.DataFrame(
-                {
-                    **{
-                        f"pred_{i}": valid_preds[:, i]
-                        for i in range(valid_preds.shape[-1])
-                    },
-                    **{
-                        f"target_{i}": valid_labels[:, i]
-                        for i in range(valid_labels.shape[-1])
-                    },
-                }
-            )
+        self.log(
+            "val/r2_Dry_Clover_g",
+            metrics["r2_Dry_Clover_g"],
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        self.log(
+            "val/r2_Dry_Dead_g",
+            metrics["r2_Dry_Dead_g"],
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        self.log(
+            "val/r2_Dry_Green_g",
+            metrics["r2_Dry_Green_g"],
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        self.log(
+            "val/r2_Dry_Total_g",
+            metrics["r2_Dry_Total_g"],
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        self.log(
+            "val/r2_GDM_g",
+            metrics["r2_GDM_g"],
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        self.save_best(metrics["weighted_r2"])
+        # preds/labelsの初期化
+        oof = pl.DataFrame(
+            {
+                **{
+                    f"pred_{i}": self.valid_preds[:, i].cpu().numpy()
+                    for i in range(self.valid_preds.shape[-1])
+                },
+                **{
+                    f"target_{i}": self.valid_labels[:, i].cpu().numpy()
+                    for i in range(self.valid_labels.shape[-1])
+                },
+            }
+        )
 
-        oof.write_csv(os.path.join(self.oof_dir, "oof.csv"))
+        oof_path = self.oof_dir / "oof.csv"
+        oof.write_csv(oof_path)
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
-        if self.trainer.datamodule.dataset_name == "augmented_aux_mixup":
-            self.trainer.train_dataloader.dataset.set_epoch(self.current_epoch)
 
         return super().on_train_epoch_end()
 
@@ -250,13 +218,14 @@ class ModelModule(L.LightningModule):
                     },
                 }
             )
-            oof.write_csv(os.path.join(self.oof_dir, "best_oof.csv"))
+            oof_path = self.oof_dir / "best_oof.csv"
+            oof.write_csv(oof_path)
             # save best weights
             if self.model_ema is not None:
-                weights_path = os.path.join(self.oof_dir, "best_weights.pth")
+                weights_path = self.oof_dir / "best_weights.pth"
                 torch.save(self.model_ema.module.model.state_dict(), weights_path)
             else:
-                weights_path = os.path.join(self.oof_dir, "best_weights.pth")
+                weights_path = self.oof_dir / "best_weights.pth"
                 torch.save(self.model.model.state_dict(), weights_path)
         self.log(
             "best_metrics",
@@ -269,13 +238,13 @@ class ModelModule(L.LightningModule):
     # 全epoch終了時にweightsを保存
     def on_train_end(self) -> None:
         if self.model_ema is not None:
-            weights_path = os.path.join(self.oof_dir, "final_weights.pth")
+            weights_path = self.oof_dir / "final_weights.pth"
             torch.save(self.model_ema.module.model.state_dict(), weights_path)
         else:
-            weights_path = os.path.join(self.oof_dir, "final_weights.pth")
+            weights_path = self.oof_dir / "final_weights.pth"
             torch.save(self.model.model.state_dict(), weights_path)
 
-        weights_path = os.path.join(self.oof_dir, "final_weights_orig.pth")
+        weights_path = self.oof_dir / "final_weights_orig.pth"
         torch.save(self.model.model.state_dict(), weights_path)
         return super().on_train_end()
 
@@ -293,24 +262,26 @@ class ModelModule(L.LightningModule):
             to be used for training.
         """
         optimizer = torch.optim.AdamW(
-            self.parameters(), lr=self.lr, weight_decay=self.weight_decay
+            self.parameters(),
+            lr=self.hparams.lr,
+            weight_decay=self.hparams.weight_decay,
         )
 
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=self.hparams.scheduler_t_0,
+            T_mult=self.hparams.scheduler_t_mult,
+            eta_min=self.hparams.scheduler_eta_min,
+            last_epoch=-1,
+            verbose=False,
+        )
+        # cosine anealing LR
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         #     optimizer,
-        #     T_0=self.scheduler_t_0,
-        #     T_mult=self.scheduler_t_mult,
+        #     T_max=self.scheduler_t_0,
         #     eta_min=self.scheduler_eta_min,
         #     last_epoch=-1,
-        #     verbose=False,
         # )
-        # cosine anealing LR
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=self.scheduler_t_0,
-            eta_min=self.scheduler_eta_min,
-            last_epoch=-1,
-        )
 
         return {
             "optimizer": optimizer,
