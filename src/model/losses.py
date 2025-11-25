@@ -16,7 +16,8 @@ class LossModule(nn.Module):
     ) -> torch.Tensor:
         preds = inputs["logits"]
         labels = targets["labels"]
-        return self.loss(preds, labels)
+        loss = self.loss(preds, labels)
+        return loss.mean()
 
     def _set_loss(self) -> nn.Module:
         print("loss name", self.loss_name)

@@ -58,6 +58,7 @@ class ModelModule(L.LightningModule):
             self.accelarator = "cpu"
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
+        self.best_metrics = -float("inf")
 
     def setup(self, stage: str) -> None:
         if self.hparams.compile and stage == "fit":  # type: ignore

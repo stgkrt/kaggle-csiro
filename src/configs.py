@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class TrainerConfig(BaseSettings):
     default_root_dir: Path = Path("kaggle/working")
     min_epochs: int = 1
-    max_epochs: int = 100
+    max_epochs: int = 10
     accelerator: str = "gpu"
     gradient_clip_val: float = 2.0
     gradient_clip_algorithm: str = "norm"

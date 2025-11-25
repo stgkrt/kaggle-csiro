@@ -57,12 +57,12 @@ class CompetitionMetrics:
         y_pred = y_pred.clone()
         metrics_value, r2_scores = weighted_r2_score_torch(y_true, y_pred)
         metrics_dict = {
-            "weighted_r2": metrics_value.numpy(),
-            "r2_Dry_Clover_g": r2_scores[0].numpy(),
-            "r2_Dry_Dead_g": r2_scores[1].numpy(),
-            "r2_Dry_Green_g": r2_scores[2].numpy(),
-            "r2_Dry_Total_g": r2_scores[3].numpy(),
-            "r2_GDM_g": r2_scores[4].numpy(),
+            "weighted_r2": float(metrics_value.numpy()),
+            "r2_Dry_Clover_g": float(r2_scores[0].numpy()),
+            "r2_Dry_Dead_g": float(r2_scores[1].numpy()),
+            "r2_Dry_Green_g": float(r2_scores[2].numpy()),
+            "r2_Dry_Total_g": float(r2_scores[3].numpy()),
+            "r2_GDM_g": float(r2_scores[4].numpy()),
         }
         return metrics_dict
 
