@@ -1,7 +1,7 @@
 #!/bin/bash
 
-exp_name="exp_000_017"
-# exp_name="debug"
+# exp_name="exp_001"
+exp_name="debug"
 model_name="simple_model" 
 dataset_name="simple"  # or "public"
 loss_name="smooth_l1"
@@ -14,6 +14,7 @@ batch_size=8
 # lr=7.5e-4
 lr=5e-4
 ema_decay=0.998
+img_size=512
 
 
 # Add timestamp suffix if directory exists
