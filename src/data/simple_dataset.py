@@ -56,7 +56,10 @@ class SimpleDataset(Dataset):
         if self.phase == "test":
             return inputs
         else:
-            target_values = row[self.target_cols].values[0].astype(np.float32)
+            target_values = [
+                row[row["target_name"] == target_name]["target"].values[0]
+                for target_name in self.target_cols
+            ]
             labels = {
                 "labels": torch.Tensor(target_values),
             }
