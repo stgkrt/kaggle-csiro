@@ -1,15 +1,19 @@
 #!/bin/bash
 
-# exp_name="exp_000"
-exp_name="debug"
+exp_name="exp_000_017"
+# exp_name="debug"
 model_name="simple_model" 
 dataset_name="simple"  # or "public"
-notes="first training"
+loss_name="smooth_l1"
+notes="first training with ReLU"
 tags="simple"
-# tagsにmodel_name, dataset_nameをスペースを開けて追加
-tags="$tags $model_name $dataset_name"
-epochs=10
-batch_size=64
+# tagsにmodel_name, dataset_name, loss_nameを追加
+tags="$tags $model_name $dataset_name $loss_name"
+epochs=20
+batch_size=8
+# lr=7.5e-4
+lr=5e-4
+ema_decay=0.998
 
 
 # Add timestamp suffix if directory exists
@@ -32,5 +36,11 @@ do
         --notes="$notes" \
         --tags="$tags" \
         --fold=$fold \
-        --trainer.max_epochs=$epochs 
+        --augmentation.resize_img_height=$img_size \
+        --augmentation.resize_img_width=$img_size \
+        --loss.loss_name="$loss_name" \
+        --trainer.max_epochs=$epochs \
+        --trainer.ema_decay=$ema_decay \
+        --trainer.lr=$lr
 done
+
