@@ -7,7 +7,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--src-dir", type=str, default="/kaggle/working")
     parser.add_argument("--kaggle-username", type=str, default="stgkrtua")
-    parser.add_argument("--competition", type=str, default="cmi2025")
+    parser.add_argument("--competition", type=str, default="csiro-biomass")
     parser.add_argument("--exp-name", type=str, default="debug")
     parser.add_argument("--folds", type=int, nargs="*", default=[0, 1, 2, 3, 4])
     parser.add_argument("--upload-or-create", type=str, default="upload")
@@ -18,9 +18,7 @@ if __name__ == "__main__":
         "final_weights_ema.pth",
         "config.yaml",
         "oof.csv",
-        "inverse_gesture_dict.pkl",
-        "feature_columns.yaml",
-        "feature_scaler.yaml",
+        "best_oof.csv",
     ]
     upload_dir = "./upload_models"
     zip_dir = "./models"

@@ -8,7 +8,7 @@ if __name__ == "__main__":
     parser.add_argument("--src-dir", type=str, default="./src")
     parser.add_argument("--upload-dir", type=str, default="./upload_src")
     parser.add_argument("--kaggle-username", type=str, default="stgkrtua")
-    parser.add_argument("--competition", type=str, default="cmi2025")
+    parser.add_argument("--competition", type=str, default="csiro-biomass")
     parser.add_argument("--upload-or-create", type=str, default="upload")
     args = parser.parse_args()
     # src_dirがなければエラー
