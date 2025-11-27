@@ -268,21 +268,21 @@ class ModelModule(L.LightningModule):
             weight_decay=self.hparams.weight_decay,
         )
 
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        #     optimizer,
+        #     T_0=self.hparams.scheduler_t_0,
+        #     T_mult=self.hparams.scheduler_t_mult,
+        #     eta_min=self.hparams.scheduler_eta_min,
+        #     last_epoch=-1,
+        #     verbose=False,
+        # )
+        # cosine anealing LR
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer,
-            T_0=self.hparams.scheduler_t_0,
-            T_mult=self.hparams.scheduler_t_mult,
+            T_max=self.hparams.scheduler_t_0,
             eta_min=self.hparams.scheduler_eta_min,
             last_epoch=-1,
-            verbose=False,
         )
-        # cosine anealing LR
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        #     optimizer,
-        #     T_max=self.scheduler_t_0,
-        #     eta_min=self.scheduler_eta_min,
-        #     last_epoch=-1,
-        # )
 
         return {
             "optimizer": optimizer,

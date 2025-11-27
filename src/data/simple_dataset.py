@@ -47,20 +47,20 @@ class SimpleDataset(Dataset):
             self.df["image_path"] == str(image_path.relative_to(image_path.parents[1]))
         ]
 
-        if self.phase == "fit" and self.transforms is not None:
+        if self.transforms is not None:
             image = self.transforms(image=image)["image"]
 
-        target_values = [
-            row[row["target_name"] == target_name]["target"].values[0]
-            for target_name in self.target_cols
-        ]
         inputs = {
             "image": torch.Tensor(image),
         }
-        labels = {
-            "labels": torch.Tensor(target_values),
-        }
-        return inputs, labels
+        if self.phase == "test":
+            return inputs
+        else:
+            target_values = row[self.target_cols].values[0].astype(np.float32)
+            labels = {
+                "labels": torch.Tensor(target_values),
+            }
+            return inputs, labels
 
 
 if __name__ == "__main__":

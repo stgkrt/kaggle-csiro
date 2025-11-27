@@ -17,7 +17,7 @@ class TrainerConfig(BaseSettings):
     devices: int = 1
     deterministic: bool = True
     # optimizer scheduler params
-    lr: float = 2e-4
+    lr: float = 1e-3
     weight_decay: float = 1e-3
     scheduler_eta_min: float = 1e-9
     scheduler_t_mult: int = 1
@@ -48,8 +48,23 @@ class AugmentationConfig(BaseSettings):
     vertical_flip: bool = False
     vflip_prob: float = 0.5
     resize: bool = True
-    resize_img_height: int = 128
-    resize_img_width: int = 256
+    # resize_img_height: int = 384
+    # resize_img_width: int = 384 * 2
+    # resize_img_height: int = 256
+    # resize_img_width: int = 256
+    resize_img_height: int = 512
+    resize_img_width: int = 512
+    shadow: bool = True
+    shadow_roi_start: float = 0.0
+    shadow_roi_end: float = 0.5
+    num_shadows_lower: int = 1
+    num_shadows_upper: int = 2
+    shadow_dimension: int = 50
+    shadow_prob: float = 0.3
+    brightness_contrast: bool = True
+    brightness_limit: float = 0.2
+    contrast_limit: float = 0.2
+    brightness_contrast_prob: float = 0.3
 
 
 class DatasetConfig(BaseSettings):
@@ -105,7 +120,6 @@ class Config(BaseSettings):
     seed: int = 42
     exp_name: str = "debug"
     fold: int = 0
-    img_size: int = 128
 
     ckpt_path: Optional[Path] = None
     tags: str = "public 0.0"

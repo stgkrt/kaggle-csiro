@@ -4,6 +4,18 @@ from torch import nn
 from configs import LossConfig
 
 
+class WeightedMSELoss(nn.Module):
+    def __init__(self, weights: torch.Tensor, device: torch.device):
+        super(WeightedMSELoss, self).__init__()
+        self.weights = weights
+        self.weights = self.weights.to(device)
+
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        loss = (inputs - targets) ** 2
+        weighted_loss = loss * self.weights
+        return weighted_loss.mean()
+
+
 class LossModule(nn.Module):
     def __init__(self, loss_config: LossConfig):
         super(LossModule, self).__init__()
@@ -23,6 +35,11 @@ class LossModule(nn.Module):
         print("loss name", self.loss_name)
         if self.loss_name == "mse_loss":
             loss: nn._Loss = nn.MSELoss()
+        elif self.loss_name == "smooth_l1":
+            loss = nn.SmoothL1Loss()
+        elif self.loss_name == "weighted_mse":
+            weights = torch.tensor(self.config.weighted_mse_weights)
+            loss = WeightedMSELoss(weights=weights, device=self.config.device)
         else:
             raise NotImplementedError
         return loss

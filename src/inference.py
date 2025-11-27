@@ -1,163 +1,316 @@
 import argparse
-import pickle
 from pathlib import Path
 
-import joblib
+import albumentations as A
 import numpy as np
 import pandas as pd
-import polars as pl
 import torch
-import yaml  # type: ignore
+import yaml
+from albumentations.core.composition import Compose
+from albumentations.pytorch import ToTensorV2
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from src.data.dataset_process import (
-    get_each_features_list,
-    get_input_features,
-    get_max_min_by_group,
-)
-from src.data.preprocess import (
-    preprocess_signals,
-)
-from src.model.architectures.each_branch_cnn_model import EachBranchCNNModel
+from src.data.simple_dataset import SimpleDataset
+from src.log_utils.pylogger import RankedLogger
+from src.model.architectures.simple_model import SimpleModel
+from src.model.model_module import ModelModule
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-pad_len = 127
-feature_scaler_path = Path("/kaggle/working/features/feature_scaler.yaml")
-with open(feature_scaler_path, "r") as f:
-    feature_scaler = yaml.safe_load(f)
-gesture_classes_path = Path(
-    "/kaggle/input/cmi2025-models/models/encoders/inverse_gesture_dict.pkl"
-)
-gesture_classes = joblib.load(gesture_classes_path)
-
-pred1_exp_name = "exp_009_5_002_eachbranch_cnn_model"
-pred1_config_path = Path(f"/kaggle/working/{pred1_exp_name}/fold_0/config.yaml")
-pred1_feature_config_path = Path(
-    f"/kaggle/working/{pred1_exp_name}/fold_0/feature_columns.yaml"
-)
-with open(pred1_feature_config_path, "r") as f:
-    pred1_feature_config = yaml.safe_load(f)
-with open(pred1_config_path, "r") as f:
-    pred1_config = yaml.safe_load(f)
-pred1_imu_cols = pred1_feature_config["imu_cols"]
-pred1_thm_cols = pred1_feature_config["thm_cols"]
-pred1_tof_cols = pred1_feature_config["tof_cols"]
-
-pred1_models = []
-for fold in range(5):
-    pred1_model_path = Path(
-        f"/kaggle/working/{pred1_exp_name}/fold_{fold}/final_weights.pth"
-    )
-    pred1_model = EachBranchCNNModel(
-        imu_dim=pred1_feature_config["imu_dim"],
-        tof_dim=pred1_feature_config["tof_dim"],
-        thm_dim=pred1_feature_config["thm_dim"],
-        n_classes=pred1_config["model"]["n_classes"],
-        default_emb_dim=pred1_config["model"]["default_emb_dim"],
-        layer_num=pred1_config["model"]["layer_num"],
-    )
-    pred1_model.eval()
-    pred1_model.load_state_dict(torch.load(pred1_model_path))
-    pred1_model.to(device)
-    pred1_models.append(pred1_model)
+log = RankedLogger(__name__, rank_zero_only=True)
 
 
-def get_post_cut_features(features, pad_len=127):
-    feature_length = len(features)
-    padded_features = np.zeros((pad_len, features.shape[1]))
-    if feature_length < pad_len:
-        padded_features[:feature_length, :] = features
-    else:
-        padded_features = features[-pad_len:]
-    return padded_features
+def load_config(fold_dir: Path) -> dict:
+    """Load configuration from checkpoint directory"""
+    config_path = fold_dir / "config.yaml"
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    with open(config_path, "r") as f:
+        config_dict = yaml.safe_load(f)
+    log.info(f"Loaded config from {config_path}")
+
+    return config_dict
 
 
-def scale_features(features, features_col_list):
-    for i, col in enumerate(features_col_list):
-        max_val = feature_scaler[col]["max"]
-        min_val = feature_scaler[col]["min"]
-        if max_val == min_val:
-            features[:, i] = 0.0
-        else:
-            features[:, i] = (features[:, i] - min_val) / (max_val - min_val + 1e-8)
-    return features
-
-
-def predict_1(sequence: pl.DataFrame, demographics: pl.DataFrame) -> str:
-    df_seq = sequence.to_pandas()
-    preprocessed_df = preprocess_signals(df_seq)
-    (
-        imu_features_list,
-        thm_features_list,
-        tof_features_list,
-        data_len_list,
-        group_list,
-    ) = get_each_features_list(
-        preprocessed_df,
-        imu_cols=pred1_imu_cols,
-        thm_cols=pred1_thm_cols,
-        tof_cols=pred1_tof_cols,
-    )
-    batch_imu_features = np.empty(
-        (0, imu_features_list[0].shape[0], imu_features_list[0].shape[1])
-    )
-    batch_thm_features = np.empty(
-        (0, thm_features_list[0].shape[0], thm_features_list[0].shape[1])
-    )
-    batch_tof_features = np.empty(
-        (0, tof_features_list[0].shape[0], tof_features_list[0].shape[1])
-    )
-
-    for imu_features, thm_features, tof_features in zip(
-        imu_features_list, thm_features_list, tof_features_list
-    ):
-        imu_features = get_post_cut_features(imu_features, pad_len)
-        thm_features = get_post_cut_features(thm_features, pad_len)
-        tof_features = get_post_cut_features(tof_features, pad_len)
-        # imu_features = scale_features(imu_features, pred1_feature_config["imu_cols"])
-        thm_features = scale_features(thm_features, pred1_feature_config["thm_cols"])
-        tof_features = scale_features(tof_features, pred1_feature_config["tof_cols"])
-        batch_imu_features = np.vstack(
-            (batch_imu_features, np.expand_dims(imu_features, axis=0))
+def load_model_from_checkpoint(
+    config: dict, fold_dir: Path, weight_type: str, device: str = "cuda"
+):
+    """Load trained model from checkpoint"""
+    if config["model_name"] == "simple_model":
+        model = SimpleModel(
+            backbone_name=config["backbone_name"],
+            pretrained=config["pretrained"],
+            in_channels=config["in_channels"],
+            n_classes=config["n_classes"],
         )
-        batch_thm_features = np.vstack(
-            (batch_thm_features, np.expand_dims(thm_features, axis=0))
-        )
-        batch_tof_features = np.vstack(
-            (batch_tof_features, np.expand_dims(tof_features, axis=0))
-        )
+    if weight_type == "best":
+        model_path = Path(f"{fold_dir}/best_weights.pth")
+    elif weight_type == "final":
+        model_path = Path(f"{fold_dir}/final_weights.pth")
+    model.load_state_dict(torch.load(model_path))
+    model.to(device)
+    return model
 
-    model_input_dict = {
-        "imu_features": torch.Tensor(batch_imu_features).float().to(device),
-        "thm_features": torch.Tensor(batch_thm_features).float().to(device),
-        "tof_features": torch.Tensor(batch_tof_features).float().to(device),
-    }
+
+def create_test_dataloader(
+    test_df: pd.DataFrame,
+    data_root_dir: Path,
+    transforms: Compose,
+    batch_size: int = 64,
+    num_workers: int = 2,
+) -> DataLoader:
+    """Create test dataloader"""
+    test_dataset = SimpleDataset(
+        df=test_df,
+        data_root_dir=data_root_dir,
+        phase="test",
+        transforms=transforms,
+    )
+
+    test_loader = DataLoader(
+        dataset=test_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False,
+        pin_memory=True,
+    )
+
+    return test_loader
+
+
+def predict_fold(
+    model: ModelModule,
+    dataloader: DataLoader,
+    device: str = "cuda",
+) -> np.ndarray:
+    """Run inference on test data"""
+    model = model.to(device)
+    model.eval()
+
+    predictions = []
 
     with torch.no_grad():
-        models_output = None
-        for model in pred1_models:
-            outputs = model(model_input_dict)
-            # softmax to get probabilities (batch, n_classes)
-            probs = torch.softmax(outputs["logits"], dim=1)
-            if models_output is None:
-                models_output = probs
-            else:
-                models_output += probs
-        models_output /= len(pred1_models)
+        for batch in tqdm(dataloader, desc="Inference"):
+            inputs = batch
+            # Move inputs to device
+            inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    return models_output.cpu().numpy()
+            # Forward pass
+            outputs = model(inputs)
+            preds = outputs["logits"]
+
+            # Move predictions to CPU and convert to numpy
+            preds = preds.cpu().numpy()
+            predictions.append(preds)
+
+    # Concatenate all predictions
+    predictions = np.concatenate(predictions, axis=0)
+
+    return predictions
 
 
-def predict(sequence: pl.DataFrame, demographics: pl.DataFrame) -> str:
-    """
-    Predict the gesture class for a given sequence and demographics data.
+def create_submission(
+    predictions: np.ndarray,
+    test_df: pd.DataFrame,
+    output_path: Path,
+    target_cols: list[str] = [
+        "Dry_Clover_g",
+        "Dry_Dead_g",
+        "Dry_Green_g",
+        "Dry_Total_g",
+        "GDM_g",
+    ],
+) -> pd.DataFrame:
+    """Create submission file"""
+    # Get unique sample IDs
+    sample_ids = test_df["sample_id"].unique()
 
-    Args:
-        sequence (pl.DataFrame): The sequence data as a Polars DataFrame.
-        demographics (pl.DataFrame): The demographics data as a Polars DataFrame.
+    # Create submission dataframe
+    submission_rows = []
 
-    Returns:
-        str: The predicted gesture class.
-    """
-    pred1_output = predict_1(sequence, demographics)
-    pred1_gesture_class = np.argmax(pred1_output, axis=1)[0]
-    return gesture_classes[pred1_gesture_class]
+    for i, sample_id in enumerate(sample_ids):
+        for j, target_name in enumerate(target_cols):
+            submission_rows.append(
+                {
+                    "sample_id": f"{sample_id}_{target_name}",
+                    "target": predictions[i, j],
+                }
+            )
+
+    submission_df = pd.DataFrame(submission_rows)
+
+    return submission_df
+
+
+def get_infer_transforms(aug_config: dict) -> Compose:
+    """Create validation data augmentations based on the given configuration."""
+    transforms = []
+    transforms.append(
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+    )
+    if aug_config["resize"]:
+        transforms.append(
+            A.Resize(
+                height=aug_config["resize_img_height"],
+                width=aug_config["resize_img_width"],
+                always_apply=True,
+            )
+        )
+    transforms.append(ToTensorV2())
+    return A.Compose(transforms)
+
+
+def run_inference(
+    exp_dir: Path,
+    folds: list[int] = [0, 1, 2, 3, 4],
+    weight_type: str = "best",
+    test_csv_path: Path = Path("/kaggle/input/csiro-biomass/test.csv"),
+    data_root_dir: Path = Path("/kaggle/input/csiro-biomass/"),
+    output_dir: Path = Path("/kaggle/working/"),
+    batch_size: int = 64,
+    num_workers: int = 2,
+    device: str = "cuda",
+) -> pd.DataFrame:
+    """Run full inference pipeline"""
+    log.info("Starting inference...")
+
+    # Load test data
+    log.info(f"Loading test data from: {test_csv_path}")
+    test_df = pd.read_csv(test_csv_path)
+
+    # Create dataloader
+    log.info("Creating dataloader...")
+    # Run inference
+    preds_sum = np.zeros((len(test_df), 5))
+    for fold in folds:
+        log.info(f"Running inference fold {fold}...")
+        fold_dir = exp_dir / f"fold_{fold}"
+        # Load configuration
+        log.info("Loading configuration...")
+        config = load_config(fold_dir=fold_dir)
+        transforms = get_infer_transforms(config["augmentation"])
+        test_loader = create_test_dataloader(
+            test_df=test_df,
+            data_root_dir=data_root_dir,
+            transforms=transforms,
+            batch_size=batch_size,
+            num_workers=num_workers,
+        )
+
+        model = load_model_from_checkpoint(
+            config=config["model"],
+            fold_dir=fold_dir,
+            weight_type=weight_type,
+            device=device,
+        )
+        fold_predictions = predict_fold(model, test_loader, device=device)
+        preds_sum += fold_predictions
+
+    # Average predictions across folds
+    predictions = preds_sum / len(folds)
+
+    # Create submission
+    log.info("Creating submission...")
+    submission_df = create_submission(
+        predictions=predictions,
+        test_df=test_df,
+        output_path=output_dir / "submission.csv",
+    )
+
+    # Save predictions as numpy array
+    # np.save(output_dir / "predictions.npy", predictions)
+    # log.info(f"Predictions saved to: {output_dir / 'predictions.npy'}")
+
+    log.info("Inference completed!")
+
+    return submission_df
+
+
+def main():
+    """Main function for inference"""
+    parser = argparse.ArgumentParser(description="Run inference on test data")
+    parser.add_argument(
+        "--exp_dir",
+        type=str,
+        required=True,
+        help="Path to checkpoint directory",
+    )
+    parser.add_argument(
+        "--folds",
+        type=int,
+        nargs="+",
+        default=[0, 1, 2, 3, 4],
+        help="List of folds to use for inference",
+    )
+    parser.add_argument(
+        "--weight_type",
+        type=str,
+        default="best",
+        help="Checkpoint name (best/last or specific filename)",
+    )
+    parser.add_argument(
+        "--test_csv",
+        type=str,
+        default=None,
+        help="Path to test CSV file",
+    )
+    parser.add_argument(
+        "--data_root",
+        type=str,
+        default=None,
+        help="Path to data root directory",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=None,
+        help="Output directory for predictions",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=64,
+        help="Batch size for inference",
+    )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=2,
+        help="Number of workers for dataloader",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Device to use (cuda/cpu)",
+    )
+
+    args = parser.parse_args()
+
+    exp_dir = Path(args.exp_dir)
+    test_csv = Path(args.test_csv) if args.test_csv else None
+    data_root = Path(args.data_root) if args.data_root else None
+    output_dir = Path(args.output_dir) if args.output_dir else None
+
+    # Run inference
+    submission_df = run_inference(
+        exp_dir=exp_dir,
+        folds=args.folds,
+        test_csv_path=test_csv,
+        data_root_dir=data_root,
+        output_dir=output_dir,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        device=args.device,
+    )
+    # Save submission
+    submission_df.to_csv(output_dir / "submission.csv", index=False)
+    log.info(f"Submission saved to: {output_dir / 'submission.csv'}")
+
+    print("\nSubmission preview:")
+    print(submission_df.head())
+
+
+if __name__ == "__main__":
+    main()

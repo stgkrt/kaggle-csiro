@@ -48,7 +48,7 @@ def setup_directories(config: Config) -> None:
     log.info(f"Config directory: {config_dir}")
 
 
-def save_config(config: Config, feature_columns: dict[str, list[str]]) -> str:
+def save_config(config: Config) -> str:
     """Save configuration to files, separated by dataclass"""
     config_dir = Path(config.trainer.default_root_dir)
 
@@ -73,7 +73,6 @@ def save_config(config: Config, feature_columns: dict[str, list[str]]) -> str:
 
     # Save each dataclass separately
     saved_files = []
-
     # 1. Main Config (basic settings only)
     main_config = {
         "competition_name": config.competition_name,
@@ -81,9 +80,6 @@ def save_config(config: Config, feature_columns: dict[str, list[str]]) -> str:
         "seed": config.seed,
         "exp_name": config.exp_name,
         "fold": config.fold,
-        "preprocessed_img_size": config.preprocessed_img_size,
-        "img_size": config.img_size,
-        "in_channels": config.in_channels,
         "ckpt_path": str(config.ckpt_path) if config.ckpt_path else None,
         "tags": config.tags,
     }
@@ -134,12 +130,6 @@ def save_config(config: Config, feature_columns: dict[str, list[str]]) -> str:
         json.dump(callbacks_config, f, indent=2, default=str)
     saved_files.append(f"Callbacks config: {callbacks_path}")
 
-    # 8. Feature Columns
-    feature_columns_path = dataclass_dir / "feature_columns.json"
-    with open(feature_columns_path, "w") as f:
-        json.dump(feature_columns, f, indent=2, default=str)
-    saved_files.append(f"Feature columns: {feature_columns_path}")
-
     # Also save complete config as before for backward compatibility
     serializable_config = to_serializable_dict(config)
 
@@ -148,12 +138,6 @@ def save_config(config: Config, feature_columns: dict[str, list[str]]) -> str:
     with open(complete_yaml_path, "w") as f:
         yaml.dump(serializable_config, f, default_flow_style=False, allow_unicode=True)
     saved_files.append(f"Complete config (YAML): {complete_yaml_path}")
-
-    # Also save feature columns as YAML for easy reading
-    feature_columns_yaml_path = config_dir / "feature_columns.yaml"
-    with open(feature_columns_yaml_path, "w") as f:
-        yaml.dump(feature_columns, f, default_flow_style=False, allow_unicode=True)
-    saved_files.append(f"Feature columns (YAML): {feature_columns_yaml_path}")
 
     # Create summary file with all paths
     summary_path = config_dir / "config_summary.txt"
@@ -373,6 +357,9 @@ def main() -> None:
     """Main function"""
     # Create config from command line arguments
     config = create_config_from_args()
+    # configをyamlとして保存
+    setup_directories(config)
+    save_config(config)
 
     log.info(f"Configuration: {config}")
 
@@ -381,13 +368,10 @@ def main() -> None:
 
     log.info(f"Training completed. Metrics: {metrics_dict}")
 
-    # Get config path from object_dict
-    config_path = object_dict.get("config_path", "Unknown")
-    log.info(f"Configuration saved to {config_path}")
-
     # Sync wandb logs
     try:
         subprocess.run(["wandb", "sync", "--sync-all"], check=False)
+        log.info("Wandb logs synced successfully.")
     except Exception as e:
         log.warning(f"Failed to sync wandb logs: {e}")
 

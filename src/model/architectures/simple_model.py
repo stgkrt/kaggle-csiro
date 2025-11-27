@@ -14,10 +14,12 @@ class SimpleModel(nn.Module):
             in_chans=in_channels,
             num_classes=n_classes,
         )
+        self.activateion = nn.ReLU()
 
     def forward(self, input: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         img = input["image"]
         output = self.model(img)
+        output = self.activateion(output)
 
         output = {"logits": output}
         return output
