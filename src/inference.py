@@ -135,7 +135,7 @@ def create_submission(
         for j, target_name in enumerate(target_cols):
             submission_rows.append(
                 {
-                    "sample_id": f"{sample_id}_{target_name}",
+                    "sample_id": f"{sample_id}__{target_name}",
                     "target": predictions[i, j],
                 }
             )
