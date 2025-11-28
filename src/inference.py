@@ -5,7 +5,7 @@ import albumentations as A
 import numpy as np
 import pandas as pd
 import torch
-import yaml
+import yaml  # type: ignore
 from albumentations.core.composition import Compose
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader
@@ -41,7 +41,7 @@ def load_model_from_checkpoint(
     model = get_model_architecture(
         model_name=config["model_name"],
         backbone_name=config["backbone_name"],
-        pretrained=config["pretrained"],
+        pretrained=False,
         in_channels=config["in_channels"],
         n_classes=config["n_classes"],
     )
