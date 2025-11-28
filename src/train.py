@@ -4,9 +4,11 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytorch_lightning as L
 import yaml  # type: ignore
 from albumentations.core.composition import Compose
+from configs import Config, create_config_from_args
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
@@ -16,7 +18,6 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
 
-from configs import Config, create_config_from_args
 from src.configs import LossConfig
 from src.data.augmentations import (
     get_train_transforms,
@@ -199,6 +200,7 @@ def setup_logger(config: Config) -> list[WandbLogger, CSVLogger]:  # type: ignor
             name=run_name,
             offline=config.logger.offline,
             tags=config.tags.split(),
+            notes=config.notes,
             group=config.exp_name,
         ),
         CSVLogger(
@@ -209,7 +211,7 @@ def setup_logger(config: Config) -> list[WandbLogger, CSVLogger]:  # type: ignor
     return logger
 
 
-def create_model(config: Config) -> ModelModule:
+def create_model(config: Config, valid_df: pd.DataFrame) -> ModelModule:
     """Create model instance"""
     # Create loss config
     loss_config = LossConfig(
@@ -234,6 +236,7 @@ def create_model(config: Config) -> ModelModule:
         criterion=criterion,
         metrics=metrics,
         compile=config.trainer.compile,
+        valid_df=valid_df,
         oof_dir=config.trainer.default_root_dir,
         lr=config.trainer.lr,
         weight_decay=config.trainer.weight_decay,
@@ -302,6 +305,18 @@ def create_trainer(config: Config, callbacks: list, logger: WandbLogger) -> L.Tr
     return trainer
 
 
+def load_valid_df(config: Config) -> pd.DataFrame:
+    """Load validation dataframe"""
+    df = pd.read_csv(config.dataset.df_path)
+    fold = config.fold
+    splits_dir = config.split.split_dir
+    valid_ids_path = splits_dir / f"fold_{fold}" / "valid.yaml"
+    with open(valid_ids_path, "r") as f:
+        valid_ids = yaml.safe_load(f)
+    valid_df = df[df["sample_id"].isin(valid_ids)].reset_index(drop=True)
+    return valid_df
+
+
 def run_train(config: Config) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run training"""
     log.info("Starting training")
@@ -315,7 +330,8 @@ def run_train(config: Config) -> tuple[dict[str, Any], dict[str, Any]]:
 
     # Create components
     log.info("Creating model...")
-    model = create_model(config)
+    valid_df = load_valid_df(config)
+    model = create_model(config, valid_df=valid_df)
 
     log.info("Creating data module...")
     train_augmentations = get_train_transforms(config.dataset.augmentation)
