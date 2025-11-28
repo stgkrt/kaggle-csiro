@@ -1,5 +1,5 @@
-upload_mode="create"
-# upload_mode="upload"
+# upload_mode="create"
+upload_mode="upload"
 
 if [ "$upload_mode" = "create" ]; then
     echo "Creating a new dataset"
