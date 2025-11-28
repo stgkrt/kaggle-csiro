@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from src.data.simple_dataset import SimpleDataset
 from src.log_utils.pylogger import RankedLogger
-from src.model.architectures.simple_model import SimpleModel
+from src.model.architectures.model_architectures import get_model_architecture
 from src.model.model_module import ModelModule
 
 log = RankedLogger(__name__, rank_zero_only=True)
@@ -37,13 +37,14 @@ def load_model_from_checkpoint(
     config: dict, fold_dir: Path, weight_type: str, device: str = "cuda"
 ):
     """Load trained model from checkpoint"""
-    if config["model_name"] == "simple_model":
-        model = SimpleModel(
-            backbone_name=config["backbone_name"],
-            pretrained=config["pretrained"],
-            in_channels=config["in_channels"],
-            n_classes=config["n_classes"],
-        )
+
+    model = get_model_architecture(
+        model_name=config["model_name"],
+        backbone_name=config["backbone_name"],
+        pretrained=config["pretrained"],
+        in_channels=config["in_channels"],
+        n_classes=config["n_classes"],
+    )
     if weight_type == "best":
         model_path = Path(f"{fold_dir}/best_weights.pth")
     elif weight_type == "final":
@@ -113,7 +114,6 @@ def predict_fold(
 def create_submission(
     predictions: np.ndarray,
     test_df: pd.DataFrame,
-    output_path: Path,
     target_cols: list[str] = [
         "Dry_Clover_g",
         "Dry_Dead_g",
@@ -215,7 +215,6 @@ def run_inference(
     submission_df = create_submission(
         predictions=predictions,
         test_df=test_df,
-        output_path=output_dir / "submission.csv",
     )
 
     # Save predictions as numpy array
