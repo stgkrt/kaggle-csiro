@@ -2,13 +2,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-import polars as pl
+import pandas as pd
 import pytorch_lightning as L
 import torch
 from timm.utils import ModelEmaV2
 from torchmetrics import MeanMetric
 
-from src.metrics.competition_metrics import CompetitionMetrics
+from src.metrics.competition_metrics import CompetitionMetrics, calculate_custom_metric
 from src.model.architectures.model_architectures import ModelArchitectures
 from src.model.losses import LossModule
 
@@ -19,6 +19,7 @@ class ModelModule(L.LightningModule):
         model_architectures: ModelArchitectures,
         criterion: LossModule,
         metrics: CompetitionMetrics,
+        valid_df: pd.DataFrame,
         compile: bool,
         oof_dir: Path = Path("/kaggle/working/oof"),
         lr: float = 2e-4,
@@ -59,6 +60,14 @@ class ModelModule(L.LightningModule):
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
         self.best_metrics = -float("inf")
+        self.valid_df = valid_df
+        self.target_cols = [
+            "Dry_Clover_g",
+            "Dry_Dead_g",
+            "Dry_Green_g",
+            "Dry_Total_g",
+            "GDM_g",
+        ]
 
     def setup(self, stage: str) -> None:
         if self.hparams.compile and stage == "fit":  # type: ignore
@@ -131,6 +140,27 @@ class ModelModule(L.LightningModule):
         )
         return loss
 
+    def _make_oof_df(self) -> pd.DataFrame:
+        sample_ids_targets = self.valid_df["sample_id"].unique()
+        sample_ids = [sid.split("_")[0] for sid in sample_ids_targets]
+        sample_ids = list(sorted(set(sample_ids)))
+
+        # Create submission dataframe
+        submission_rows = []
+        valid_labels = self.valid_labels.cpu().numpy()
+        valid_preds = self.valid_preds.cpu().numpy()
+        for i, sample_id in enumerate(sample_ids):
+            for j, target_name in enumerate(self.target_cols):
+                submission_rows.append(
+                    {
+                        "sample_id": f"{sample_id}__{target_name}",
+                        "pred": valid_preds[i, j],
+                        "target": valid_labels[i, j],
+                    }
+                )
+        oof_df = pd.DataFrame(submission_rows)
+        return oof_df
+
     # epochの終わりにmetricsのlogを出力
     def on_train_epoch_end(self) -> None:
         valid_labels = self.valid_labels.cpu()
@@ -181,46 +211,39 @@ class ModelModule(L.LightningModule):
         )
         self.save_best(metrics["weighted_r2"])
         # preds/labelsの初期化
-        oof = pl.DataFrame(
-            {
-                **{
-                    f"pred_{i}": self.valid_preds[:, i].cpu().numpy()
-                    for i in range(self.valid_preds.shape[-1])
-                },
-                **{
-                    f"target_{i}": self.valid_labels[:, i].cpu().numpy()
-                    for i in range(self.valid_labels.shape[-1])
-                },
-            }
-        )
+        sample_ids_targets = self.valid_df["sample_id"].unique()
+        sample_ids = [sid.split("_")[0] for sid in sample_ids_targets]
+        sample_ids = list(sorted(set(sample_ids)))
+
+        # Create submission dataframe
+        oof_df = self._make_oof_df()
 
         oof_path = self.oof_dir / "oof.csv"
-        oof.write_csv(oof_path)
+        oof_df.to_csv(oof_path, index=False)
+
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
+
+        # custom metricの計算とログ出力
+        custom_metrics = calculate_custom_metric(oof_df, self.valid_df)
+        for key, value in custom_metrics.items():
+            self.log(
+                f"{key}",
+                value,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
 
         return super().on_train_epoch_end()
 
     def save_best(self, metrics: float) -> None:
         if metrics > self.best_metrics:
             self.best_metrics = metrics
-            pred_cols = [f"pred_{i}" for i in range(self.valid_preds.shape[-1])]  # type: ignore
-            target_cols = [f"target_{i}" for i in range(self.valid_labels.shape[-1])]  # type: ignore
-            # oofの保存
-            oof = pl.DataFrame(
-                {
-                    **{
-                        col: self.valid_preds[:, i].cpu().numpy()
-                        for i, col in enumerate(pred_cols)
-                    },
-                    **{
-                        col: self.valid_labels[:, i].cpu().numpy()
-                        for i, col in enumerate(target_cols)
-                    },
-                }
-            )
+
+            oof = self._make_oof_df()
             oof_path = self.oof_dir / "best_oof.csv"
-            oof.write_csv(oof_path)
+            oof.to_csv(oof_path, index=False)
             # save best weights
             if self.model_ema is not None:
                 weights_path = self.oof_dir / "best_weights.pth"

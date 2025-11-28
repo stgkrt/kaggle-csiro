@@ -93,10 +93,10 @@ def calulate_category_metrics(
             y_true_state[:, i] = state_df["target"][state_df["target_name"] == name]
             y_pred_state[:, i] = state_df["pred"][state_df["target_name"] == name]
             state_score, state_r2_scores = weighted_r2_score(y_true_state, y_pred_state)
-        metrics_dict[f"{category}:{state} weighted_r2"] = state_score
+        metrics_dict[f"{category}/{state} weighted_r2"] = state_score
         for idx, name in enumerate(target_name_list):
             target_name_core = name.replace("Dry_", "").replace("_g", "")
-            metrics_dict[f"{category}:{state} {target_name_core}"] = state_r2_scores[
+            metrics_dict[f"{category}/{state} {target_name_core}"] = state_r2_scores[
                 idx
             ]
     return metrics_dict
