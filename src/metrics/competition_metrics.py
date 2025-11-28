@@ -1,6 +1,7 @@
 from typing import Dict
 
 import numpy as np
+import pandas as pd
 import torch
 
 
@@ -77,24 +78,96 @@ class CompetitionMetrics:
         return diffs
 
 
-if __name__ == "__main__":
-    y_true = torch.tensor(
+def calulate_category_metrics(
+    df: pd.DataFrame,
+    category: str,
+    target_name_list: list[str],
+) -> Dict[str, float]:
+    metrics_dict: Dict[str, float] = {}
+    for state in df[category].unique():
+        state_df = df[df[category] == state]
+        y_true_state = np.zeros((len(state_df) // 5, 5))
+        y_pred_state = np.zeros((len(state_df) // 5, 5))
+        for i, name in enumerate(target_name_list):
+            target_name_core = name.replace("Dry_", "").replace("_g", "")
+            y_true_state[:, i] = state_df["target"][state_df["target_name"] == name]
+            y_pred_state[:, i] = state_df["pred"][state_df["target_name"] == name]
+            state_score, state_r2_scores = weighted_r2_score(y_true_state, y_pred_state)
+        metrics_dict[f"{category}:{state} weighted_r2"] = state_score
+        for idx, name in enumerate(target_name_list):
+            target_name_core = name.replace("Dry_", "").replace("_g", "")
+            metrics_dict[f"{category}:{state} {target_name_core}"] = state_r2_scores[
+                idx
+            ]
+    return metrics_dict
+
+
+def calculate_custom_metric(
+    oof_df: pd.DataFrame, valid_df: pd.DataFrame
+) -> Dict[str, float]:
+    target_name_list = [
+        "Dry_Clover_g",
+        "Dry_Dead_g",
+        "Dry_Green_g",
+        "Dry_Total_g",
+        "GDM_g",
+    ]
+    # train_dfとmerge
+    oof_df = oof_df.drop(columns=["target"])
+    valid_df = pd.concat(
         [
-            [10.0, 20.0, 30.0, 40.0, 50.0],
-            [15.0, 25.0, 35.0, 45.0, 55.0],
-            [20.0, 30.0, 40.0, 50.0, 60.0],
-        ]
+            valid_df,
+            oof_df,
+        ],
+        axis=1,
     )
-    y_pred = torch.tensor(
-        [
-            [12.0, 18.0, 29.0, 41.0, 52.0],
-            [14.0, 27.0, 33.0, 44.0, 57.0],
-            [19.0, 31.0, 39.0, 49.0, 61.0],
-        ]
+    valid_df["Month"] = pd.to_datetime(valid_df["Sampling_Date"]).dt.month
+    metrics_dict: Dict[str, float] = {}
+    # State別スコア計算
+    metrics_dict.update(calulate_category_metrics(valid_df, "State", target_name_list))
+    # Month別スコア計算
+    metrics_dict.update(calulate_category_metrics(valid_df, "Month", target_name_list))
+    # Species別スコア計算
+    metrics_dict.update(
+        calulate_category_metrics(valid_df, "Species", target_name_list)
     )
 
-    metric = CompetitionMetrics()
-    score = metric(y_true, y_pred)
-    diffs = metric.calculate_diff(y_true, y_pred)
-    print(score)
-    print(diffs)
+    return metrics_dict
+
+
+if __name__ == "__main__":
+    # y_true = torch.tensor(
+    #     [
+    #         [10.0, 20.0, 30.0, 40.0, 50.0],
+    #         [15.0, 25.0, 35.0, 45.0, 55.0],
+    #         [20.0, 30.0, 40.0, 50.0, 60.0],
+    #     ]
+    # )
+    # y_pred = torch.tensor(
+    #     [
+    #         [12.0, 18.0, 29.0, 41.0, 52.0],
+    #         [14.0, 27.0, 33.0, 44.0, 57.0],
+    #         [19.0, 31.0, 39.0, 49.0, 61.0],
+    #     ]
+    # )
+
+    # metric = CompetitionMetrics()
+    # score = metric(y_true, y_pred)
+    # diffs = metric.calculate_diff(y_true, y_pred)
+    # print(score)
+    # print(diffs)
+    from pathlib import Path
+
+    import yaml  # type: ignore
+
+    df = pd.read_csv("/kaggle/input/csiro-biomass/train.csv")
+    fold = 0
+    exp_dir = Path("/kaggle/working/debug")
+    splits_dir = Path("/kaggle/working/splits")
+    valid_ids_path = splits_dir / f"fold_{fold}" / "valid.yaml"
+    with open(valid_ids_path, "r") as f:
+        valid_ids = yaml.safe_load(f)
+    valid_df = df[df["sample_id"].isin(valid_ids)].reset_index(drop=True)
+    oof_df = pd.read_csv(exp_dir / f"fold_{fold}" / "best_oof.csv")
+    custom_metrics = calculate_custom_metric(oof_df, valid_df)
+    print(custom_metrics)
