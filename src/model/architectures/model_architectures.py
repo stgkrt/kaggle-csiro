@@ -1,16 +1,21 @@
+from typing import Union
+
 import torch
 from torch import nn
 
 from src.configs import ModelConfig
+from src.model.architectures.simple_clover_diff import SimpleCloverDiffModel
 from src.model.architectures.simple_model import SimpleModel
 from src.model.architectures.simple_total import SimpleTotalModel
+
+MODEL_TYPE = Union[SimpleModel, SimpleTotalModel, SimpleCloverDiffModel]
 
 
 def get_model_architecture(
     model_name, backbone_name, pretrained, in_channels, n_classes
-) -> nn.Module:
+) -> MODEL_TYPE:
     if model_name == "simple_model":
-        model = SimpleModel(
+        model: MODEL_TYPE = SimpleModel(
             backbone_name=backbone_name,
             pretrained=pretrained,
             in_channels=in_channels,
@@ -18,6 +23,13 @@ def get_model_architecture(
         )
     elif model_name == "simple_total":
         model = SimpleTotalModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+        )
+    elif model_name == "simple_clover_diff":
+        model = SimpleCloverDiffModel(
             backbone_name=backbone_name,
             pretrained=pretrained,
             in_channels=in_channels,
