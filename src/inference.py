@@ -124,7 +124,9 @@ def create_submission(
 ) -> pd.DataFrame:
     """Create submission file"""
     # Get unique sample IDs
-    sample_ids = test_df["sample_id"].unique()
+    sample_ids_targets = test_df["sample_id"].unique()
+    sample_ids = [sid.split("_")[0] for sid in sample_ids_targets]
+    sample_ids = list(sorted(set(sample_ids)))
 
     # Create submission dataframe
     submission_rows = []
@@ -139,6 +141,7 @@ def create_submission(
             )
 
     submission_df = pd.DataFrame(submission_rows)
+    assert len(submission_df) == len(test_df)
 
     return submission_df
 
@@ -205,10 +208,12 @@ def run_inference(
             device=device,
         )
         fold_predictions = predict_fold(model, test_loader, device=device)
+        print("fold_pred shape", fold_predictions.shape)
         preds_sum += fold_predictions
 
     # Average predictions across folds
     predictions = preds_sum / len(folds)
+    print(predictions.shape)
 
     # Create submission
     log.info("Creating submission...")
