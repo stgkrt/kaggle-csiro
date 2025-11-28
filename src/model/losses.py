@@ -38,7 +38,7 @@ class LossModule(nn.Module):
         elif self.loss_name == "smooth_l1":
             loss = nn.SmoothL1Loss()
         elif self.loss_name == "weighted_mse":
-            weights = torch.tensor(self.config.weighted_mse_weights)
+            weights = torch.tensor(self.config.mse_weights)
             loss = WeightedMSELoss(weights=weights, device=self.config.device)
         else:
             raise NotImplementedError

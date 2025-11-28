@@ -37,6 +37,8 @@ class ModelConfig(BaseSettings):
 class LossConfig(BaseSettings):
     loss_name: str = "mse_loss"
     pos_weight: Optional[float] = 10.0
+    mse_weights: Optional[List[float]] = [0.1, 0.1, 0.1, 0.2, 0.5]
+    device: str = "cuda"
 
 
 class AugmentationConfig(BaseSettings):
