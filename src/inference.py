@@ -127,10 +127,9 @@ def create_submission(
     sample_ids_targets = test_df["sample_id"].unique()
     sample_ids = [sid.split("_")[0] for sid in sample_ids_targets]
     sample_ids = list(sorted(set(sample_ids)))
-
+    print("Number of samples:", len(sample_ids))
     # Create submission dataframe
     submission_rows = []
-
     for i, sample_id in enumerate(sample_ids):
         for j, target_name in enumerate(target_cols):
             submission_rows.append(
@@ -170,7 +169,6 @@ def run_inference(
     weight_type: str = "best",
     test_csv_path: Path = Path("/kaggle/input/csiro-biomass/test.csv"),
     data_root_dir: Path = Path("/kaggle/input/csiro-biomass/"),
-    output_dir: Path = Path("/kaggle/working/"),
     batch_size: int = 64,
     num_workers: int = 2,
     device: str = "cuda",
@@ -185,7 +183,7 @@ def run_inference(
     # Create dataloader
     log.info("Creating dataloader...")
     # Run inference
-    preds_sum = np.zeros((len(test_df), 5))
+    preds_sum = np.zeros((len(test_df) // 5, 5))
     for fold in folds:
         log.info(f"Running inference fold {fold}...")
         fold_dir = exp_dir / f"fold_{fold}"
@@ -208,12 +206,10 @@ def run_inference(
             device=device,
         )
         fold_predictions = predict_fold(model, test_loader, device=device)
-        print("fold_pred shape", fold_predictions.shape)
         preds_sum += fold_predictions
 
     # Average predictions across folds
     predictions = preds_sum / len(folds)
-    print(predictions.shape)
 
     # Create submission
     log.info("Creating submission...")
@@ -303,7 +299,6 @@ def main():
         folds=args.folds,
         test_csv_path=test_csv,
         data_root_dir=data_root,
-        output_dir=output_dir,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         device=args.device,
@@ -313,7 +308,7 @@ def main():
     log.info(f"Submission saved to: {output_dir / 'submission.csv'}")
 
     print("\nSubmission preview:")
-    print(submission_df.head())
+    print(submission_df.head(50))
 
 
 if __name__ == "__main__":
