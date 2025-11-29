@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 from albumentations.core.composition import Compose
-from configs import SplitConfig
+from data.height_gshh_dataset import HeightGSHHDataset
 from data.simple_dataset import SimpleDataset
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
@@ -133,6 +133,19 @@ class DataModule(LightningDataModule):
                 data_root_dir=self.data_root_dir,
                 transforms=self.valid_transforms,
             )
+        elif self.dataset_name == "height_gshh":
+            self.data_train = HeightGSHHDataset(
+                df=train_df,
+                data_root_dir=self.data_root_dir,
+                phase="fit",
+                transforms=self.train_transforms,
+            )
+            self.data_val = HeightGSHHDataset(
+                df=valid_df,
+                data_root_dir=self.data_root_dir,
+                phase="validate",
+                transforms=self.valid_transforms,
+            )
         else:
             raise NotImplementedError(
                 f"Dataset {self.dataset_name} is not implemented."
@@ -141,6 +154,8 @@ class DataModule(LightningDataModule):
 
 if __name__ == "__main__":
     dataset_name = "simple"
+    dataset_name = "height_gshh"
+
     df_path = Path("/kaggle/input/csiro-biomass/train.csv")
     num_workers = 0
     batch_size = 64
