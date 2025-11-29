@@ -214,16 +214,11 @@ def setup_logger(config: Config) -> list[WandbLogger, CSVLogger]:  # type: ignor
 def create_model(config: Config, valid_df: pd.DataFrame) -> ModelModule:
     """Create model instance"""
     # Create loss config
-    loss_config = LossConfig(
-        loss_name=config.loss.loss_name,
-        pos_weight=config.loss.pos_weight,
-    )
-
     # Create model architectures with proper ModelConfig object
     model_architectures = ModelArchitectures(config.model)
 
     # Create loss module
-    criterion = LossModule(loss_config)
+    criterion = LossModule(config.loss)
 
     # Create metrics
     metrics = CompetitionMetrics()
@@ -301,6 +296,7 @@ def create_trainer(config: Config, callbacks: list, logger: WandbLogger) -> L.Tr
         callbacks=callbacks,
         logger=logger,
         reload_dataloaders_every_n_epochs=1,
+        log_every_n_steps=10,
     )
     return trainer
 
