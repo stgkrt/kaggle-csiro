@@ -2,11 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 from albumentations.core.composition import Compose
-from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset
-
 from configs import SplitConfig
 from data.simple_dataset import SimpleDataset
+from pytorch_lightning import LightningDataModule
+from torch.utils.data import DataLoader, Dataset
 
 
 class DataModule(LightningDataModule):
@@ -75,17 +74,13 @@ class DataModule(LightningDataModule):
 
         :return: The train dataloader.
         """
-        if len(self.data_train) % self.batch_size_per_device <= 2:  # type: ignore
-            drop_last = True
-        else:
-            drop_last = False
         return DataLoader(
             dataset=self.data_train,  # type: ignore
             batch_size=self.batch_size_per_device,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             shuffle=True,
-            drop_last=drop_last,
+            drop_last=False,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -93,17 +88,13 @@ class DataModule(LightningDataModule):
 
         :return: The validation dataloader.
         """
-        if len(self.data_val) % self.batch_size_per_device <= 2:  # type: ignore
-            drop_last = True
-        else:
-            drop_last = False
         return DataLoader(
             dataset=self.data_val,  # type: ignore
             batch_size=self.batch_size_per_device,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             shuffle=False,
-            drop_last=drop_last,
+            drop_last=False,
         )
 
     def test_dataloader(self) -> DataLoader:
