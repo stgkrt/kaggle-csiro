@@ -25,7 +25,8 @@ class HeightGSHHDataset(Dataset):
         self.image_path_list = [
             data_root_dir / Path(image_path) for image_path in self.image_path_list
         ]
-        self.image_path_list = list(set(self.image_path_list))
+        # Preserve order while removing duplicates using dict.fromkeys()
+        self.image_path_list = list(dict.fromkeys(self.image_path_list))
         self.target_cols = [
             "Dry_Clover_g",
             "Dry_Dead_g",
