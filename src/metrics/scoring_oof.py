@@ -52,46 +52,40 @@ def calculate_overall_oof_score(
     train_df = load_train_data(train_csv_path)
     print(f"Loaded train.csv: {len(train_df)} rows")
 
-    # 全foldのOOF予測を収集
-    all_predictions = []
-    all_targets = []
-    all_sample_ids = []
-
+    oof_df = pd.DataFrame()
     for fold in range(n_folds):
         print(f"\nProcessing fold {fold}...")
 
         # OOFファイルを読み込み
-        oof_df = load_fold_oof(exp_dir, fold)
-        print(f"  Loaded OOF: {len(oof_df)} rows")
+        oof_df_fold = load_fold_oof(exp_dir, fold)
+        print(f"  Loaded OOF: {len(oof_df_fold)} rows")
 
-        # 検証用インデックスを読み込み
-        valid_indices = load_fold_valid_indices(splits_dir, fold)
-        print(f"  Valid indices: {len(valid_indices)} samples")
+        oof_df = pd.concat([oof_df, oof_df_fold], ignore_index=True)
 
-        # 予測値と真値を取得
-        pred_cols = [f"pred_{i}" for i in range(5)]
-        target_cols = [f"target_{i}" for i in range(5)]
+        valid_fold = load_fold_valid_indices(splits_dir, fold)
+        print(f"  Loaded valid indices: {len(valid_fold)} samples")
+        valid_df = train_df[train_df["sample_id"].isin(valid_fold)]
 
-        predictions = oof_df[pred_cols].values
-        targets = oof_df[target_cols].values
-
-        all_predictions.append(predictions)
-        all_targets.append(targets)
-        all_sample_ids.extend(valid_indices)
+        valid_df = pd.merge(
+            valid_df,
+            oof_df_fold[["sample_id", "pred"]],
+            on="sample_id",
+            suffixes=("_true", "_pred"),
+        )
+        targets = valid_df["target"].values.reshape(-1, 5)
+        predictions = valid_df["pred"].values.reshape(-1, 5)
 
         # 各foldのスコアを計算
         fold_score, fold_r2_scores = weighted_r2_score(targets, predictions)
         print(f"  Fold {fold} Score: {fold_score:.6f}")
         print(f"  Individual R2: {fold_r2_scores}")
 
-    # 全foldを結合
-    all_predictions = np.vstack(all_predictions)
-    all_targets = np.vstack(all_targets)
-
     print(f"\n{'=' * 60}")
-    print(f"Total samples: {len(all_predictions)}")
-    print(f"Unique sample IDs: {len(set(all_sample_ids))}")
-
+    print(f"Total samples: {len(oof_df)}")
+    print(f"Unique sample IDs: {oof_df['sample_id'].nunique()}")
+    # 全foldの予測とターゲットを収集
+    all_targets = oof_df.sort_values("sample_id")["target"].values.reshape(-1, 5)
+    all_predictions = oof_df.sort_values("sample_id")["pred"].values.reshape(-1, 5)
     # Overall OOF Scoreを計算
     overall_score, overall_r2_scores = weighted_r2_score(all_targets, all_predictions)
 
@@ -117,7 +111,7 @@ def calculate_overall_oof_score(
 
 
 if __name__ == "__main__":
-    exp_dir = Path("/kaggle/working/exp_003_000")
+    exp_dir = Path("/kaggle/working/exp_000_000")
     train_csv_path = Path("/kaggle/input/csiro-biomass/train.csv")
     splits_dir = Path("/kaggle/working/splits")
     n_folds = 5
