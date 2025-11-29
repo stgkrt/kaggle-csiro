@@ -42,7 +42,7 @@ def get_train_transforms(aug_config: AugmentationConfig):
             A.Resize(
                 height=aug_config.resize_img_height,
                 width=aug_config.resize_img_width,
-                always_apply=True,
+                p=1.0,
             )
         )
 
@@ -64,7 +64,7 @@ def get_valid_transforms(aug_config: AugmentationConfig):
             A.Resize(
                 height=aug_config.resize_img_height,
                 width=aug_config.resize_img_width,
-                always_apply=True,
+                p=1.0,
             )
         )
     transforms.append(ToTensorV2())
