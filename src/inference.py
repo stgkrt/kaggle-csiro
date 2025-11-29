@@ -12,11 +12,25 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.data.simple_dataset import SimpleDataset
-from src.log_utils.pylogger import RankedLogger
 from src.model.architectures.model_architectures import get_model_architecture
 from src.model.model_module import ModelModule
 
-log = RankedLogger(__name__, rank_zero_only=True)
+
+def seed_everything(seed: int = 42) -> None:
+    """Set seed for reproducibility"""
+    import os
+    import random
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+seed_everything(42)
 
 
 def load_config(fold_dir: Path) -> dict:
@@ -28,7 +42,8 @@ def load_config(fold_dir: Path) -> dict:
 
     with open(config_path, "r") as f:
         config_dict = yaml.safe_load(f)
-    log.info(f"Loaded config from {config_path}")
+    print(f"Loaded config from {config_path}")
+    print(config_dict)
 
     return config_dict
 
@@ -49,8 +64,10 @@ def load_model_from_checkpoint(
         model_path = Path(f"{fold_dir}/best_weights.pth")
     elif weight_type == "final":
         model_path = Path(f"{fold_dir}/final_weights.pth")
+    print(f"Loading model weights from: {model_path}")
     model.load_state_dict(torch.load(model_path))
     model.to(device)
+    model.eval()
     return model
 
 
@@ -75,6 +92,7 @@ def create_test_dataloader(
         num_workers=num_workers,
         shuffle=False,
         pin_memory=True,
+        drop_last=False,
     )
 
     return test_loader
@@ -86,9 +104,6 @@ def predict_fold(
     device: str = "cuda",
 ) -> np.ndarray:
     """Run inference on test data"""
-    model = model.to(device)
-    model.eval()
-
     predictions = []
 
     with torch.no_grad():
@@ -151,14 +166,13 @@ def get_infer_transforms(aug_config: dict) -> Compose:
     transforms.append(
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
     )
-    if aug_config["resize"]:
-        transforms.append(
-            A.Resize(
-                height=aug_config["resize_img_height"],
-                width=aug_config["resize_img_width"],
-                always_apply=True,
-            )
+    transforms.append(
+        A.Resize(
+            height=aug_config["resize_img_height"],
+            width=aug_config["resize_img_width"],
+            p=1.0,
         )
+    )
     transforms.append(ToTensorV2())
     return A.Compose(transforms)
 
@@ -170,26 +184,27 @@ def run_inference(
     test_csv_path: Path = Path("/kaggle/input/csiro-biomass/test.csv"),
     data_root_dir: Path = Path("/kaggle/input/csiro-biomass/"),
     batch_size: int = 64,
-    num_workers: int = 2,
+    num_workers: int = 0,
     device: str = "cuda",
 ) -> pd.DataFrame:
     """Run full inference pipeline"""
-    log.info("Starting inference...")
+    print("Starting inference...")
 
     # Load test data
-    log.info(f"Loading test data from: {test_csv_path}")
+    print(f"Loading test data from: {test_csv_path}")
     test_df = pd.read_csv(test_csv_path)
 
     # Create dataloader
-    log.info("Creating dataloader...")
+    print("Creating dataloader...")
     # Run inference
     preds_sum = np.zeros((len(test_df) // 5, 5))
     for fold in folds:
-        log.info(f"Running inference fold {fold}...")
+        print(f"Running inference fold {fold}...")
         fold_dir = exp_dir / f"fold_{fold}"
         # Load configuration
-        log.info("Loading configuration...")
+        print("Loading configuration...")
         config = load_config(fold_dir=fold_dir)
+
         transforms = get_infer_transforms(config["augmentation"])
         test_loader = create_test_dataloader(
             test_df=test_df,
@@ -212,7 +227,7 @@ def run_inference(
     predictions = preds_sum / len(folds)
 
     # Create submission
-    log.info("Creating submission...")
+    print("Creating submission...")
     submission_df = create_submission(
         predictions=predictions,
         test_df=test_df,
@@ -220,96 +235,46 @@ def run_inference(
 
     # Save predictions as numpy array
     # np.save(output_dir / "predictions.npy", predictions)
-    # log.info(f"Predictions saved to: {output_dir / 'predictions.npy'}")
+    # print(f"Predictions saved to: {output_dir / 'predictions.npy'}")
 
-    log.info("Inference completed!")
+    print("Inference completed!")
 
     return submission_df
 
 
-def main():
-    """Main function for inference"""
-    parser = argparse.ArgumentParser(description="Run inference on test data")
-    parser.add_argument(
-        "--exp_dir",
-        type=str,
-        required=True,
-        help="Path to checkpoint directory",
-    )
-    parser.add_argument(
-        "--folds",
-        type=int,
-        nargs="+",
-        default=[0, 1, 2, 3, 4],
-        help="List of folds to use for inference",
-    )
-    parser.add_argument(
-        "--weight_type",
-        type=str,
-        default="best",
-        help="Checkpoint name (best/last or specific filename)",
-    )
-    parser.add_argument(
-        "--test_csv",
-        type=str,
-        default=None,
-        help="Path to test CSV file",
-    )
-    parser.add_argument(
-        "--data_root",
-        type=str,
-        default=None,
-        help="Path to data root directory",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default=None,
-        help="Output directory for predictions",
-    )
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=64,
-        help="Batch size for inference",
-    )
-    parser.add_argument(
-        "--num_workers",
-        type=int,
-        default=2,
-        help="Number of workers for dataloader",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to use (cuda/cpu)",
-    )
+if __name__ == "__main__":
 
-    args = parser.parse_args()
-
-    exp_dir = Path(args.exp_dir)
-    test_csv = Path(args.test_csv) if args.test_csv else None
-    data_root = Path(args.data_root) if args.data_root else None
-    output_dir = Path(args.output_dir) if args.output_dir else None
+    class EXP_CONFIG:
+        # exp_dir = Path("/kaggle/input/csiro-biomass-models/models/exp_000_000")
+        exp_dir = Path("/kaggle/working/exp_000_000")
+        # weight_type = "final"
+        weight_type = "best"
+        # folds = [0, 1, 2, 3, 4]
+        folds = [0]
+        test_csv_path = Path("/kaggle/input/csiro-biomass/train.csv")
+        data_root_dir = Path("/kaggle/input/csiro-biomass")
+        output_dir = Path("/kaggle/working/")
+        batch_size = 64
+        num_workers = 0
+        device = "cuda"
 
     # Run inference
     submission_df = run_inference(
-        exp_dir=exp_dir,
-        folds=args.folds,
-        test_csv_path=test_csv,
-        data_root_dir=data_root,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        device=args.device,
+        exp_dir=EXP_CONFIG.exp_dir,
+        folds=EXP_CONFIG.folds,
+        test_csv_path=EXP_CONFIG.test_csv_path,
+        data_root_dir=EXP_CONFIG.data_root_dir,
+        batch_size=EXP_CONFIG.batch_size,
+        num_workers=EXP_CONFIG.num_workers,
+        device=EXP_CONFIG.device,
     )
     # Save submission
-    submission_df.to_csv(output_dir / "submission.csv", index=False)
-    log.info(f"Submission saved to: {output_dir / 'submission.csv'}")
-
-    print("\nSubmission preview:")
-    print(submission_df.head(50))
-
-
-if __name__ == "__main__":
-    main()
+    submission_df.to_csv(EXP_CONFIG.output_dir / "submission.csv", index=False)
+    print(f"Submission saved to: {EXP_CONFIG.output_dir / 'submission.csv'}")
+    train_df = pd.read_csv(EXP_CONFIG.test_csv_path)
+    train_df = train_df[["sample_id", "target"]]
+    submission_df = submission_df.rename(columns={"target": "pred"})
+    scoring_df = train_df.merge(
+        submission_df[["sample_id", "pred"]], on="sample_id", how="left"
+    )
+    print(scoring_df.head())
