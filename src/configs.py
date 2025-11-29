@@ -32,12 +32,15 @@ class ModelConfig(BaseSettings):
 
     in_channels: int = 3
     n_classes: int = 5
+    # auxiliary head parameters for height and gshh
+    emb_dim: int = 128
+    aux_dim_reduction_factor: int = 2
 
 
 class LossConfig(BaseSettings):
     loss_name: str = "mse_loss"
-    pos_weight: Optional[float] = 10.0
     mse_weights: Optional[List[float]] = [0.1, 0.1, 0.1, 0.2, 0.5]
+    aux_weight: float = 0.3
     device: str = "cuda"
 
 
@@ -50,10 +53,6 @@ class AugmentationConfig(BaseSettings):
     vertical_flip: bool = False
     vflip_prob: float = 0.5
     resize: bool = True
-    # resize_img_height: int = 384
-    # resize_img_width: int = 384 * 2
-    # resize_img_height: int = 256
-    # resize_img_width: int = 256
     resize_img_height: int = 512
     resize_img_width: int = 512
     shadow: bool = True
@@ -62,11 +61,11 @@ class AugmentationConfig(BaseSettings):
     num_shadows_lower: int = 1
     num_shadows_upper: int = 2
     shadow_dimension: int = 50
-    shadow_prob: float = 0.3
+    shadow_prob: float = 0.5
     brightness_contrast: bool = True
     brightness_limit: float = 0.2
     contrast_limit: float = 0.2
-    brightness_contrast_prob: float = 0.3
+    brightness_contrast_prob: float = 0.5
 
 
 class DatasetConfig(BaseSettings):
