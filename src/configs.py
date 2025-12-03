@@ -33,8 +33,10 @@ class ModelConfig(BaseSettings):
     in_channels: int = 3
     n_classes: int = 5
     # auxiliary head parameters for height and gshh
-    emb_dim: int = 128
+    emb_dim: int = 32
     aux_dim_reduction_factor: int = 2
+    dropout: float = 0.2
+    drop_path_rate: float = 0.3
 
 
 class LossConfig(BaseSettings):
