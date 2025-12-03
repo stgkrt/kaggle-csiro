@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 from albumentations.core.composition import Compose
+from data.clover_dataset import CloverDataset
+from data.height_dataset import HeightDataset
 from data.height_gshh_dataset import HeightGSHHDataset
 from data.simple_dataset import SimpleDataset
 from pytorch_lightning import LightningDataModule
@@ -80,7 +82,7 @@ class DataModule(LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             shuffle=True,
-            drop_last=False,
+            drop_last=True,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -133,6 +135,19 @@ class DataModule(LightningDataModule):
                 data_root_dir=self.data_root_dir,
                 transforms=self.valid_transforms,
             )
+        elif self.dataset_name == "height":
+            self.data_train = HeightDataset(
+                df=train_df,
+                data_root_dir=self.data_root_dir,
+                phase="fit",
+                transforms=self.train_transforms,
+            )
+            self.data_val = HeightDataset(
+                df=valid_df,
+                data_root_dir=self.data_root_dir,
+                phase="validate",
+                transforms=self.valid_transforms,
+            )
         elif self.dataset_name == "height_gshh":
             self.data_train = HeightGSHHDataset(
                 df=train_df,
@@ -146,6 +161,20 @@ class DataModule(LightningDataModule):
                 phase="validate",
                 transforms=self.valid_transforms,
             )
+        elif self.dataset_name == "clover":
+            self.data_train = CloverDataset(
+                df=train_df,
+                data_root_dir=self.data_root_dir,
+                phase="fit",
+                transforms=self.train_transforms,
+            )
+            self.data_val = CloverDataset(
+                df=valid_df,
+                data_root_dir=self.data_root_dir,
+                phase="validate",
+                transforms=self.valid_transforms,
+            )
+
         else:
             raise NotImplementedError(
                 f"Dataset {self.dataset_name} is not implemented."

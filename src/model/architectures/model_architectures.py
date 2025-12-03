@@ -4,13 +4,20 @@ import torch
 from torch import nn
 
 from src.configs import ModelConfig
+from src.model.architectures.clover_model import CloverModel
 from src.model.architectures.height_gshh_model import HeightGHSSModel
+from src.model.architectures.height_model import HeightModel
 from src.model.architectures.simple_clover_diff import SimpleCloverDiffModel
 from src.model.architectures.simple_model import SimpleModel
 from src.model.architectures.simple_total import SimpleTotalModel
 
 MODEL_TYPE = Union[
-    SimpleModel, SimpleTotalModel, SimpleCloverDiffModel, HeightGHSSModel
+    SimpleModel,
+    SimpleTotalModel,
+    SimpleCloverDiffModel,
+    HeightGHSSModel,
+    HeightModel,
+    CloverModel,
 ]
 
 
@@ -44,8 +51,26 @@ def get_model_architecture(
             in_channels=in_channels,
             n_classes=n_classes,
         )
+    elif model_name == "height_model":
+        model = HeightModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            aux_dim_reduction_factor=aux_dim_reduction_factor,
+        )
     elif model_name == "height_gshh_model":
         model = HeightGHSSModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            aux_dim_reduction_factor=aux_dim_reduction_factor,
+        )
+    elif model_name == "clover_model":
+        model = CloverModel(
             backbone_name=backbone_name,
             pretrained=pretrained,
             in_channels=in_channels,
