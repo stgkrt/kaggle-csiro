@@ -561,7 +561,7 @@ def main():
                             img_id = img_path.split("/")[-1].replace(".jpg", "")
                             st.markdown(
                                 f"""
-                                <div style='background-color: #1a237e; padding: 8px; 
+                                <div style='background-color: #1a237e; padding: 8px;
                                 border-radius: 5px; text-align: center; margin-bottom: 10px;'>
                                 <strong style='color: #ffffff; font-size: 1.1em;'>
                                 ID: {img_id}</strong>
@@ -583,20 +583,20 @@ def main():
 
                                     st.markdown(
                                         f"""
-                                        <div style='background-color: #e3f2fd; 
-                                        padding: 12px; border-radius: 8px; 
-                                        border: 2px solid #1976d2; 
+                                        <div style='background-color: #e3f2fd;
+                                        padding: 12px; border-radius: 8px;
+                                        border: 2px solid #1976d2;
                                         font-size: 0.85em; margin-bottom: 10px;'>
                                         <div style='color: #0d47a1;'>
-                                        <strong style='color: #1565c0;'>📅 日付:</strong> 
+                                        <strong style='color: #1565c0;'>📅 日付:</strong>
                                         {row["Sampling_Date"]}<br>
-                                        <strong style='color: #1565c0;'>📍 州:</strong> 
+                                        <strong style='color: #1565c0;'>📍 州:</strong>
                                         {row["State"]}<br>
-                                        <strong style='color: #1565c0;'>🌾 種:</strong> 
+                                        <strong style='color: #1565c0;'>🌾 種:</strong>
                                         {species_display}<br>
-                                        <strong style='color: #1565c0;'>NDVI:</strong> 
-                                        {row["Pre_GSHH_NDVI"]:.3f} | 
-                                        <strong style='color: #1565c0;'>高さ:</strong> 
+                                        <strong style='color: #1565c0;'>NDVI:</strong>
+                                        {row["Pre_GSHH_NDVI"]:.3f} |
+                                        <strong style='color: #1565c0;'>高さ:</strong>
                                         {row["Height_Ave_cm"]:.1f}cm
                                         </div>
                                         </div>
@@ -629,8 +629,8 @@ def main():
                                 # テストデータの場合
                                 st.markdown(
                                     """
-                                    <div style='background-color: #fafafa; 
-                                    padding: 10px; border-radius: 5px; 
+                                    <div style='background-color: #fafafa;
+                                    padding: 10px; border-radius: 5px;
                                     border: 1px solid #bdbdbd; text-align: center;'>
                                     <span style='color: #757575;'>
                                     テストデータ - ラベルなし</span>

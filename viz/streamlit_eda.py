@@ -95,7 +95,7 @@ if page == "📊 Overview":
     st.subheader("📝 コンペティション概要")
     st.markdown("""
     このコンペティションでは、牧草の画像から以下の5つのバイオマス成分を予測します:
-    
+
     1. **Dry_Green_g**: 乾燥緑色植生（クローバーを除く）
     2. **Dry_Dead_g**: 乾燥死物質
     3. **Dry_Clover_g**: 乾燥クローバーバイオマス
@@ -567,11 +567,11 @@ elif page == "🖼️ Image Viewer":
 
                             # 画像情報を表示
                             st.markdown(f"""
-                            **ID**: {row["image_path"].split("/")[-1].replace(".jpg", "")}  
-                            **State**: {row["State"]}  
-                            **Species**: {row["Species"]}  
-                            **Date**: {row["Sampling_Date"].strftime("%Y-%m-%d")}  
-                            **NDVI**: {row["Pre_GSHH_NDVI"]:.2f}  
+                            **ID**: {row["image_path"].split("/")[-1].replace(".jpg", "")}
+                            **State**: {row["State"]}
+                            **Species**: {row["Species"]}
+                            **Date**: {row["Sampling_Date"].strftime("%Y-%m-%d")}
+                            **NDVI**: {row["Pre_GSHH_NDVI"]:.2f}
                             **Height**: {row["Height_Ave_cm"]:.2f} cm
                             """)
 
