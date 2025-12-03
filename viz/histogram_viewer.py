@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # データパス
-DATA_DIR = Path("/kaggle/input")
+DATA_DIR = Path("/kaggle/input/csiro-biomass/")
 TRAIN_CSV = DATA_DIR / "train.csv"
 TRAIN_IMG_DIR = DATA_DIR / "train"
 

@@ -28,9 +28,9 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     """データの読み込みとキャッシュ"""
-    train_df = pd.read_csv("/kaggle/input/train.csv")
-    test_df = pd.read_csv("/kaggle/input/test.csv")
-    sample_submission = pd.read_csv("/kaggle/input/sample_submission.csv")
+    train_df = pd.read_csv("/kaggle/input/csiro-biomass/train.csv")
+    test_df = pd.read_csv("/kaggle/input/csiro-biomass/test.csv")
+    sample_submission = pd.read_csv("/kaggle/input/csiro-biomass/sample_submission.csv")
 
     # 日付を datetime に変換
     train_df["Sampling_Date"] = pd.to_datetime(train_df["Sampling_Date"])

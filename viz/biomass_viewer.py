@@ -14,7 +14,7 @@ from PIL import Image
 st.set_page_config(page_title="Biomass Data Viewer", page_icon="🌿", layout="wide")
 
 # データパス
-DATA_DIR = Path("/kaggle/input")
+DATA_DIR = Path("/kaggle/input/csiro-biomass/")
 TRAIN_CSV = DATA_DIR / "train.csv"
 TEST_CSV = DATA_DIR / "test.csv"
 SAMPLE_SUBMISSION = DATA_DIR / "sample_submission.csv"
