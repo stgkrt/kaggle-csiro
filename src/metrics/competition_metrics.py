@@ -84,21 +84,27 @@ def calulate_category_metrics(
     target_name_list: list[str],
 ) -> Dict[str, float]:
     metrics_dict: Dict[str, float] = {}
-    for state in df[category].unique():
-        state_df = df[df[category] == state]
-        y_true_state = np.zeros((len(state_df) // 5, 5))
-        y_pred_state = np.zeros((len(state_df) // 5, 5))
+    for category_name in df[category].unique():
+        category_df = df[df[category] == category_name]
+        y_true_category_name = np.zeros((len(category_df) // 5, 5))
+        y_pred_category_name = np.zeros((len(category_df) // 5, 5))
         for i, name in enumerate(target_name_list):
             target_name_core = name.replace("Dry_", "").replace("_g", "")
-            y_true_state[:, i] = state_df["target"][state_df["target_name"] == name]
-            y_pred_state[:, i] = state_df["pred"][state_df["target_name"] == name]
-            state_score, state_r2_scores = weighted_r2_score(y_true_state, y_pred_state)
-        metrics_dict[f"{category}/{state} weighted_r2"] = state_score
+            y_true_category_name[:, i] = category_df["target"][
+                category_df["target_name"] == name
+            ]
+            y_pred_category_name[:, i] = category_df["pred"][
+                category_df["target_name"] == name
+            ]
+            category_name_score, category_name_r2_scores = weighted_r2_score(
+                y_true_category_name, y_pred_category_name
+            )
+        metrics_dict[f"{category}/{category_name} weighted_r2"] = category_name_score
         for idx, name in enumerate(target_name_list):
             target_name_core = name.replace("Dry_", "").replace("_g", "")
-            metrics_dict[f"{category}/{state} {target_name_core}"] = state_r2_scores[
-                idx
-            ]
+            metrics_dict[f"{category}_{category_name}/{target_name_core}"] = (
+                category_name_r2_scores[idx]
+            )
     return metrics_dict
 
 
@@ -122,6 +128,10 @@ def calculate_custom_metric(
         axis=1,
     )
     valid_df["Month"] = pd.to_datetime(valid_df["Sampling_Date"]).dt.month
+    valid_df["season"] = valid_df["Month"] % 12 // 3 + 1  # 1:冬, 2:春, 3:夏, 4:秋
+    valid_df["season"] = valid_df["season"].map(
+        {1: "winter", 2: "spring", 3: "summer", 4: "autumn"}
+    )
     metrics_dict: Dict[str, float] = {}
     # State別スコア計算
     metrics_dict.update(calulate_category_metrics(valid_df, "State", target_name_list))
@@ -131,6 +141,7 @@ def calculate_custom_metric(
     metrics_dict.update(
         calulate_category_metrics(valid_df, "Species", target_name_list)
     )
+    metrics_dict.update(calulate_category_metrics(valid_df, "season", target_name_list))
 
     return metrics_dict
 
