@@ -18,7 +18,6 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
 
-from src.configs import LossConfig
 from src.data.augmentations import (
     get_train_transforms,
     get_valid_transforms,
