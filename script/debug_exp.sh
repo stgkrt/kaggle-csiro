@@ -1,41 +1,30 @@
 #!/bin/bash
 
-# exp_name="exp_003_cv_006"
+# exp_name="exp_004_000"
 exp_name="debug"
-only_fold_0=true
 
 # model_name="simple_model"
 # dataset_name="simple"  # or "public"
 # loss_name="smooth_l1"
 
-# model_name="height_model"
-# # dataset_name="height"
-# dataset_name="simple"  # or "public"
-# # loss_name="height_loss"
-# loss_name="smooth_l1"
+# model_name="height_gshh_model"
+# dataset_name="height_gshh"
+# loss_name="height_gshh_loss"
 
-model_name="clover_model"
-dataset_name="clover"
-loss_name="clover_loss"
+model_name="height_model"
+dataset_name="height"
+loss_name="height_loss"
 
-notes="tuning cross validation"
+notes="aux height and gshh prediction"
 tags="simple"
 # tagsにmodel_name, dataset_name, loss_nameを追加
 tags="$tags $model_name $dataset_name $loss_name"
-
-# split_dir="/kaggle/working/splits_stf_species_state"
-# split_dir="/kaggle/working/splits_stg_species_state"
-# split_dir="/kaggle/working/splits_stg_species_state_season"
-split_dir="/kaggle/working/splits_stg_species_month_dead_state"
-
 epochs=30
 batch_size=8
-# lr=5e-4
-lr=1e-3
+lr=2e-3
 ema_decay=0.993
 img_size=512
-aux_weight=10.0
-emb_dim=32
+aux_weight=0.01
 
 # Add timestamp suffix if directory exists
 if [ -d /kaggle/working/$exp_name ]; then
@@ -46,14 +35,8 @@ fi
 echo "Experiment Name: $exp_name"
 
 # Run training with specific epoch count
-# for fold in 0 1 2 3 4
-if [ "$only_fold_0" = true ] ; then
-    folds_to_run="0"
-else
-    folds_to_run="0 1 2 3 4"
-fi
-
-for fold in $folds_to_run
+for fold in 0 1 2 3 4
+# for fold in 0
 do
     echo "Run exp $exp_name fold $fold"
     python src/train.py \
@@ -70,7 +53,5 @@ do
         --trainer.max_epochs=$epochs \
         --trainer.ema_decay=$ema_decay \
         --trainer.lr=$lr \
-        --model.emb_dim=$emb_dim \
-        --loss.aux_weight=$aux_weight \
-        --split.split_dir="$split_dir"
+        --loss.aux_weight=$aux_weight
 done

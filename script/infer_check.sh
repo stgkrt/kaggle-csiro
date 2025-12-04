@@ -24,7 +24,7 @@
 
 
 python src/inference.py \
-  --exp_dir /kaggle/working/exp_002_002 \
+  --exp_dir /kaggle/working/exp_000_000 \
   --folds 0 \
   --weight_type best \
   --test_csv /kaggle/input/csiro-biomass/train.csv \
