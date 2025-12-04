@@ -194,6 +194,7 @@ def setup_callbacks(config: Config) -> list[Any]:
 def setup_logger(config: Config) -> list[WandbLogger, CSVLogger]:  # type: ignore
     """Setup wandb logger"""
     run_name = f"{config.exp_name}_fold{config.fold}"
+    config_dict = config.__dict__.copy()
     logger = [
         WandbLogger(
             project=config.logger.project,
@@ -202,6 +203,7 @@ def setup_logger(config: Config) -> list[WandbLogger, CSVLogger]:  # type: ignor
             tags=config.tags.split(),
             notes=config.notes,
             group=config.exp_name,
+            config=config_dict,
         ),
         CSVLogger(
             save_dir=config.trainer.default_root_dir,
