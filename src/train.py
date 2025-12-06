@@ -203,6 +203,7 @@ def setup_logger(config: Config) -> list[WandbLogger, CSVLogger]:  # type: ignor
             notes=config.notes,
             group=config.exp_name,
             config=config_dict,
+            entity=config.logger.entity,  # team名を入れる
         ),
         CSVLogger(
             save_dir=config.trainer.default_root_dir,
@@ -231,6 +232,7 @@ def create_model(config: Config, valid_df: pd.DataFrame) -> ModelModule:
         model_architectures=model_architectures,
         criterion=criterion,
         metrics=metrics,
+        target_cols=config.dataset.target_cols,
         compile=config.trainer.compile,
         valid_df=valid_df,
         oof_dir=config.trainer.default_root_dir,
@@ -269,6 +271,7 @@ def create_datamodule(
         dataset_name=config.dataset.dataset_name,
         df_path=config.dataset.df_path,
         data_root_dir=config.dataset.data_root_dir,
+        target_cols=config.dataset.target_cols,
         num_workers=config.dataset.num_workers,
         batch_size=config.dataset.batch_size,
         pin_memory=config.dataset.pin_memory,

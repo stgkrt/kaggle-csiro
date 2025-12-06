@@ -37,6 +37,7 @@ class ModelConfig(BaseSettings):
     aux_dim_reduction_factor: int = 2
     dropout: float = 0.2
     drop_path_rate: float = 0.3
+    head_connection_type: str = "class_head"
 
 
 class LossConfig(BaseSettings):
@@ -74,13 +75,13 @@ class DatasetConfig(BaseSettings):
     dataset_name: str = "simple"
     data_root_dir: Path = Path("/kaggle/input/csiro-biomass/")
     df_path: Path = Path("/kaggle/input/csiro-biomass/train.csv")
-    # target_cols: List[str] = [
-    #     "Dry_Green_g",
-    #     "Dry_Dead_g",
-    #     "Dry_Clover_g",
-    #     "GDM_g",
-    #     "Dry_Total_g",
-    # ]
+    target_cols: List[str] = [
+        "Dry_Green_g",
+        "Dry_Dead_g",
+        "Dry_Clover_g",
+        "GDM_g",
+        "Dry_Total_g",
+    ]
     batch_size: int = 64
     num_workers: int = 2
     pin_memory: bool = True
@@ -106,6 +107,7 @@ class LoggerConfig(BaseSettings):
     name: Optional[str] = None
     offline: bool = True
     save_dir: Path = Path(".")
+    entity: Optional[str] = "kaggle_csiro"
 
 
 class CallbacksConfig(BaseSettings):

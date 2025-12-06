@@ -20,6 +20,7 @@ class ModelModule(L.LightningModule):
         criterion: LossModule,
         metrics: CompetitionMetrics,
         valid_df: pd.DataFrame,
+        target_cols: list[str],
         compile: bool,
         oof_dir: Path = Path("/kaggle/working/oof"),
         lr: float = 2e-4,
@@ -61,13 +62,7 @@ class ModelModule(L.LightningModule):
         self.valid_labels = torch.Tensor().to(self.accelarator)
         self.best_metrics = -float("inf")
         self.valid_df = valid_df
-        self.target_cols = [
-            "Dry_Clover_g",
-            "Dry_Dead_g",
-            "Dry_Green_g",
-            "Dry_Total_g",
-            "GDM_g",
-        ]
+        self.target_cols = target_cols
 
     def setup(self, stage: str) -> None:
         if self.hparams.compile and stage == "fit":  # type: ignore

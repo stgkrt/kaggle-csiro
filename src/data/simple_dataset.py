@@ -16,6 +16,7 @@ class SimpleDataset(Dataset):
         self,
         df: pd.DataFrame,
         data_root_dir: Path,
+        target_cols: list[str],
         phase: str = "fit",
         transforms: Optional[Compose] = None,
     ):
@@ -27,13 +28,7 @@ class SimpleDataset(Dataset):
         ]
         # Preserve order while removing duplicates using dict.fromkeys()
         self.image_path_list = list(dict.fromkeys(self.image_path_list))
-        self.target_cols = [
-            "Dry_Clover_g",
-            "Dry_Dead_g",
-            "Dry_Green_g",
-            "Dry_Total_g",
-            "GDM_g",
-        ]
+        self.target_cols = target_cols
         self.phase = phase
         self.transforms = transforms
 
@@ -73,13 +68,20 @@ if __name__ == "__main__":
     data_root_dir = Path("/kaggle/input/csiro-biomass")
     df = pd.read_csv(df_path)
 
-    from src.configs import AugmentationConfig
+    from src.configs import AugmentationConfig, DatasetConfig
     from src.data.augmentations import get_train_transforms
 
     aug_config = AugmentationConfig()
+    data_config = DatasetConfig()
     train_transforms = get_train_transforms(aug_config)
     # print(df.head())
-    dataset = SimpleDataset(df, data_root_dir, phase="fit", transforms=train_transforms)
+    dataset = SimpleDataset(
+        df,
+        data_root_dir,
+        target_cols=data_config.target_cols,
+        phase="fit",
+        transforms=train_transforms,
+    )
     dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=1)
     for batch in dataloader:
         inputs, labels = batch

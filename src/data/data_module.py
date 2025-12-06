@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 from albumentations.core.composition import Compose
@@ -27,6 +28,7 @@ class DataModule(LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = True,
+        target_cols: Optional[list[str]] = None,
         train_ids: list[str] = [""],
         valid_ids: list[str] = [""],
         train_transforms: Compose | None = None,
@@ -56,7 +58,7 @@ class DataModule(LightningDataModule):
         # from config
         self.dataset_name = dataset_name
         self.df = pd.read_csv(df_path)
-
+        self.target_cols = target_cols
         self.batch_size = batch_size
         self.batch_size_per_device = batch_size
         self.num_workers = num_workers
@@ -129,11 +131,13 @@ class DataModule(LightningDataModule):
                 df=train_df,
                 data_root_dir=self.data_root_dir,
                 transforms=self.train_transforms,
+                target_cols=self.target_cols,
             )
             self.data_val = SimpleDataset(
                 df=valid_df,
                 data_root_dir=self.data_root_dir,
                 transforms=self.valid_transforms,
+                target_cols=self.target_cols,
             )
         elif self.dataset_name == "height":
             self.data_train = HeightDataset(
@@ -141,12 +145,14 @@ class DataModule(LightningDataModule):
                 data_root_dir=self.data_root_dir,
                 phase="fit",
                 transforms=self.train_transforms,
+                target_cols=self.target_cols,
             )
             self.data_val = HeightDataset(
                 df=valid_df,
                 data_root_dir=self.data_root_dir,
                 phase="validate",
                 transforms=self.valid_transforms,
+                target_cols=self.target_cols,
             )
         elif self.dataset_name == "height_gshh":
             self.data_train = HeightGSHHDataset(
@@ -154,12 +160,14 @@ class DataModule(LightningDataModule):
                 data_root_dir=self.data_root_dir,
                 phase="fit",
                 transforms=self.train_transforms,
+                target_cols=self.target_cols,
             )
             self.data_val = HeightGSHHDataset(
                 df=valid_df,
                 data_root_dir=self.data_root_dir,
                 phase="validate",
                 transforms=self.valid_transforms,
+                target_cols=self.target_cols,
             )
         elif self.dataset_name == "clover":
             self.data_train = CloverDataset(
@@ -167,12 +175,14 @@ class DataModule(LightningDataModule):
                 data_root_dir=self.data_root_dir,
                 phase="fit",
                 transforms=self.train_transforms,
+                target_cols=self.target_cols,
             )
             self.data_val = CloverDataset(
                 df=valid_df,
                 data_root_dir=self.data_root_dir,
                 phase="validate",
                 transforms=self.valid_transforms,
+                target_cols=self.target_cols,
             )
 
         else:
@@ -184,22 +194,21 @@ class DataModule(LightningDataModule):
 if __name__ == "__main__":
     dataset_name = "simple"
     dataset_name = "height_gshh"
+    from src.configs import DatasetConfig
 
-    df_path = Path("/kaggle/input/csiro-biomass/train.csv")
-    num_workers = 0
-    batch_size = 64
-    pin_memory = True
-    df = pd.read_csv(df_path)
+    data_config = DatasetConfig()
+    df = pd.read_csv(data_config.df_path)
     train_ids = df.iloc[:100]["sample_id"].tolist()
     valid_ids = df.iloc[:-50]["sample_id"].tolist()
 
     data_module = DataModule(
         dataset_name=dataset_name,
-        df_path=df_path,
+        df_path=data_config.df_path,
         data_root_dir=Path("/kaggle/input/csiro-biomass/"),
-        num_workers=num_workers,
-        batch_size=batch_size,
-        pin_memory=pin_memory,
+        target_cols=data_config.target_cols,
+        num_workers=0,
+        batch_size=8,
+        pin_memory=True,
         train_ids=train_ids,
         valid_ids=valid_ids,
         train_transforms=None,
