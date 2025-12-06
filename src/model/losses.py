@@ -125,7 +125,7 @@ class WeightedCloverLoss(nn.Module):
         self, inputs: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
     ) -> torch.Tensor:
         preds = inputs["logits"]
-        clover_preds = inputs["include_clover_label"]
+        clover_preds = inputs["include_clover_preds"]
 
         labels = targets["labels"]
         clover_labels = targets["include_clover_label"]
