@@ -306,9 +306,9 @@ class TestModelArchitecturesWithAuxHeads:
             output = model(sample_input)
 
         assert "logits" in output
-        assert "include_clover_pred" in output
+        assert "include_clover_preds" in output
         assert output["logits"].shape == (4, 5)
-        assert output["include_clover_pred"].shape == (4, 1)
+        assert output["include_clover_preds"].shape == (4, 1)
 
 
 class TestModelArchitecturesIntegration:

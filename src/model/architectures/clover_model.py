@@ -60,7 +60,7 @@ class CloverModel(nn.Module):
         output = self.target_head(emb)
         clover_output = self.clover_classification_head(emb)
 
-        output = {"logits": output, "include_clover_pred": clover_output}
+        output = {"logits": output, "include_clover_preds": clover_output}
         return output
 
 
