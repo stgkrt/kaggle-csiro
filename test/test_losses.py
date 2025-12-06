@@ -201,7 +201,7 @@ class TestCloverLoss:
         clover_preds = torch.randn(batch_size, 1).to(device)
         clover_labels = torch.randint(0, 2, (batch_size, 1)).float().to(device)
 
-        inputs = {"logits": preds, "include_clover_pred": clover_preds}
+        inputs = {"logits": preds, "include_clover_preds": clover_preds}
         targets = {"labels": labels, "include_clover_label": clover_labels}
 
         loss = loss_fn(inputs, targets)
