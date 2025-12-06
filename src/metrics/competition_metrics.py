@@ -62,8 +62,8 @@ class CompetitionMetrics:
             "r2_Dry_Clover_g": float(r2_scores[0].numpy()),
             "r2_Dry_Dead_g": float(r2_scores[1].numpy()),
             "r2_Dry_Green_g": float(r2_scores[2].numpy()),
-            "r2_Dry_Total_g": float(r2_scores[3].numpy()),
-            "r2_GDM_g": float(r2_scores[4].numpy()),
+            "r2_GDM_g": float(r2_scores[3].numpy()),
+            "r2_Dry_Total_g": float(r2_scores[4].numpy()),
         }
         return metrics_dict
 
@@ -115,8 +115,8 @@ def calculate_custom_metric(
         "Dry_Clover_g",
         "Dry_Dead_g",
         "Dry_Green_g",
-        "Dry_Total_g",
         "GDM_g",
+        "Dry_Total_g",
     ]
     # train_dfとmerge
     oof_df = oof_df.drop(columns=["target"])
