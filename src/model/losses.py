@@ -187,10 +187,10 @@ class LossModule(nn.Module):
         elif self.loss_name == "smooth_l1_loss":
             loss = SmoothL1Loss()
         elif self.loss_name == "weighted_mse_loss":
-            weights = torch.tensor(self.config.mse_weights)
+            weights = torch.tensor(self.config.target_weights)
             loss = WeightedMSELoss(weights=weights, device=self.config.device)
         elif self.loss_name == "weighted_smooth_l1_loss":
-            weights = torch.tensor(self.config.mse_weights)
+            weights = torch.tensor(self.config.target_weights)
             loss = WeightedSmoothL1Loss(weights=weights, device=self.config.device)
         elif self.loss_name == "height_loss":
             loss = HeightLoss(
@@ -198,7 +198,7 @@ class LossModule(nn.Module):
                 aux_weight=self.config.aux_weight,
             )
         elif self.loss_name == "height_gshh_loss":
-            weights = torch.tensor(self.config.mse_weights)
+            weights = torch.tensor(self.config.target_weights)
             loss = HeightGHSSLoss(
                 device=self.config.device,
                 aux_weight=self.config.aux_weight,
@@ -209,7 +209,7 @@ class LossModule(nn.Module):
                 aux_weight=self.config.aux_weight,
             )
         elif self.loss_name == "weighted_clover_loss":
-            weights = torch.tensor(self.config.mse_weights)
+            weights = torch.tensor(self.config.target_weights)
             loss = WeightedCloverLoss(
                 weights=weights,
                 device=self.config.device,

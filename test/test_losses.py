@@ -251,7 +251,7 @@ class TestLossModule:
         """Test weighted MSE loss creation"""
         config = LossConfig(
             loss_name="weighted_mse_loss",
-            mse_weights=[0.1, 0.1, 0.1, 0.2, 0.5],
+            target_weights=[0.1, 0.1, 0.1, 0.2, 0.5],
         )
         loss_module = LossModule(config)
 
@@ -268,7 +268,7 @@ class TestLossModule:
         """Test weighted Smooth L1 loss creation"""
         config = LossConfig(
             loss_name="weighted_smooth_l1_loss",
-            mse_weights=[0.1, 0.1, 0.1, 0.2, 0.5],
+            target_weights=[0.1, 0.1, 0.1, 0.2, 0.5],
         )
         loss_module = LossModule(config)
 
