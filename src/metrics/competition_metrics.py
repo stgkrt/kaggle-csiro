@@ -59,9 +59,9 @@ class CompetitionMetrics:
         metrics_value, r2_scores = weighted_r2_score_torch(y_true, y_pred)
         metrics_dict = {
             "weighted_r2": float(metrics_value.numpy()),
-            "r2_Dry_Clover_g": float(r2_scores[0].numpy()),
+            "r2_Dry_Green_g": float(r2_scores[0].numpy()),
             "r2_Dry_Dead_g": float(r2_scores[1].numpy()),
-            "r2_Dry_Green_g": float(r2_scores[2].numpy()),
+            "r2_Dry_Clover_g": float(r2_scores[2].numpy()),
             "r2_GDM_g": float(r2_scores[3].numpy()),
             "r2_Dry_Total_g": float(r2_scores[4].numpy()),
         }
@@ -112,9 +112,9 @@ def calculate_custom_metric(
     oof_df: pd.DataFrame, valid_df: pd.DataFrame
 ) -> Dict[str, float]:
     target_name_list = [
-        "Dry_Clover_g",
-        "Dry_Dead_g",
         "Dry_Green_g",
+        "Dry_Dead_g",
+        "Dry_Clover_g",
         "GDM_g",
         "Dry_Total_g",
     ]
