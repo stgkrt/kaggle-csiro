@@ -21,9 +21,7 @@ class DataModule(LightningDataModule):
     def __init__(
         self,
         dataset_name: str = "public",
-        df_path: Path = Path(
-            "/kaggle/input/cmi-detect-behavior-with-sensor-data/train.csv"
-        ),
+        df_path: Path = Path("/kaggle/input/csiro-biomass/train.csv"),
         data_root_dir: Path = Path("/kaggle/input/csiro-biomass/"),
         batch_size: int = 64,
         num_workers: int = 0,

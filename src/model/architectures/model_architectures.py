@@ -29,6 +29,7 @@ def get_model_architecture(
     n_classes,
     emb_dim=128,
     aux_dim_reduction_factor=2,
+    head_connection_type="direct",
 ) -> MODEL_TYPE:
     if model_name == "simple_model":
         model: MODEL_TYPE = SimpleModel(
@@ -77,6 +78,7 @@ def get_model_architecture(
             n_classes=n_classes,
             emb_dim=emb_dim,
             aux_dim_reduction_factor=aux_dim_reduction_factor,
+            head_connection_type=head_connection_type,
         )
     else:
         print(f"Model {model_name} not implemented.")
@@ -96,6 +98,7 @@ class ModelArchitectures(nn.Module):
             n_classes=self.config.n_classes,
             emb_dim=self.config.emb_dim,
             aux_dim_reduction_factor=self.config.aux_dim_reduction_factor,
+            head_connection_type=self.config.head_connection_type,
         )
 
     def forward(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:

@@ -30,7 +30,7 @@ class MSELoss(nn.Module):
         preds = inputs["logits"]
         labels = targets["labels"]
         loss = self.mse_loss(preds, labels)
-        return loss.mean()
+        return loss
 
 
 class SmoothL1Loss(nn.Module):
@@ -44,7 +44,24 @@ class SmoothL1Loss(nn.Module):
         preds = inputs["logits"]
         labels = targets["labels"]
         loss = self.smooth_l1_loss(preds, labels)
-        return loss.mean()
+        return loss
+
+
+class WeightedSmoothL1Loss(nn.Module):
+    def __init__(self, weights: torch.Tensor, device: torch.device):
+        super(WeightedSmoothL1Loss, self).__init__()
+        self.weights = weights
+        self.weights = self.weights.to(device)
+        self.smooth_l1_loss = nn.SmoothL1Loss(reduction="none")
+
+    def forward(
+        self, inputs: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        preds = inputs["logits"]
+        labels = targets["labels"]
+        loss = self.smooth_l1_loss(preds, labels)
+        weighted_loss = loss * self.weights
+        return weighted_loss.mean()
 
 
 class HeightLoss(nn.Module):
@@ -81,7 +98,7 @@ class CloverLoss(nn.Module):
         self, inputs: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
     ) -> torch.Tensor:
         preds = inputs["logits"]
-        clover_preds = inputs["include_clover_label"]
+        clover_preds = inputs["include_clover_pred"]
 
         labels = targets["labels"]
         clover_labels = targets["include_clover_label"]
@@ -90,6 +107,35 @@ class CloverLoss(nn.Module):
         aux_clover_loss = self.bce_loss(clover_preds, clover_labels)
 
         loss = target_loss.mean() + self.aux_weight * (aux_clover_loss.mean())
+        return loss
+
+
+class WeightedCloverLoss(nn.Module):
+    def __init__(
+        self, weights: torch.Tensor, device: torch.device, aux_weight: float = 0.3
+    ):
+        super(WeightedCloverLoss, self).__init__()
+        self.weights = weights
+        self.weights = self.weights.to(device)
+        self.aux_weight = torch.tensor(aux_weight).to(device)
+        self.smooth_l1_loss = nn.SmoothL1Loss(reduction="none")
+        self.bce_loss = nn.BCEWithLogitsLoss()
+
+    def forward(
+        self, inputs: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        preds = inputs["logits"]
+        clover_preds = inputs["include_clover_label"]
+
+        labels = targets["labels"]
+        clover_labels = targets["include_clover_label"]
+
+        loss = self.smooth_l1_loss(preds, labels)
+        weighted_loss = loss * self.weights
+        target_loss = weighted_loss.mean()
+        aux_clover_loss = self.bce_loss(clover_preds, clover_labels)
+
+        loss = target_loss + self.aux_weight * (aux_clover_loss.mean())
         return loss
 
 
@@ -138,11 +184,14 @@ class LossModule(nn.Module):
         print("loss name", self.loss_name)
         if self.loss_name == "mse_loss":
             loss: nn._Loss = MSELoss()
-        elif self.loss_name == "smooth_l1":
+        elif self.loss_name == "smooth_l1_loss":
             loss = SmoothL1Loss()
-        elif self.loss_name == "weighted_mse":
+        elif self.loss_name == "weighted_mse_loss":
             weights = torch.tensor(self.config.mse_weights)
             loss = WeightedMSELoss(weights=weights, device=self.config.device)
+        elif self.loss_name == "weighted_smooth_l1_loss":
+            weights = torch.tensor(self.config.mse_weights)
+            loss = WeightedSmoothL1Loss(weights=weights, device=self.config.device)
         elif self.loss_name == "height_loss":
             loss = HeightLoss(
                 device=self.config.device,
@@ -159,6 +208,13 @@ class LossModule(nn.Module):
                 device=self.config.device,
                 aux_weight=self.config.aux_weight,
             )
+        elif self.loss_name == "weighted_clover_loss":
+            weights = torch.tensor(self.config.mse_weights)
+            loss = WeightedCloverLoss(
+                weights=weights,
+                device=self.config.device,
+                aux_weight=self.config.aux_weight,
+            )
         else:
             raise NotImplementedError
         return loss
@@ -169,7 +225,9 @@ if __name__ == "__main__":
 
     config = Config()
     # config.loss.loss_name = "height_gshh_loss"
-    config.loss.loss_name = "clover_loss"
+    # config.loss.loss_name = "clover_loss"
+    # config.loss.loss_name = "weighted_smooth_l1"
+    config.loss.loss_name = "weighted_clover_loss"
     loss_module = LossModule(loss_config=config.loss)
 
     # Dummy data
@@ -186,5 +244,8 @@ if __name__ == "__main__":
         "include_clover_label": torch.randn(4, 1),
     }
 
+    # to device
+    inputs = {k: v.to(config.loss.device) for k, v in inputs.items()}
+    targets = {k: v.to(config.loss.device) for k, v in targets.items()}
     loss = loss_module(inputs, targets)
     print(f"Loss: {loss.item():.4f}")
