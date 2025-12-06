@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from src.configs import ModelConfig
+from src.model.architectures.clover_diffdead import CloverDiffDeadModel
 from src.model.architectures.clover_model import CloverModel
 from src.model.architectures.height_gshh_model import HeightGHSSModel
 from src.model.architectures.height_model import HeightModel
@@ -18,6 +19,7 @@ MODEL_TYPE = Union[
     HeightGHSSModel,
     HeightModel,
     CloverModel,
+    CloverDiffDeadModel,
 ]
 
 
@@ -79,6 +81,14 @@ def get_model_architecture(
             emb_dim=emb_dim,
             aux_dim_reduction_factor=aux_dim_reduction_factor,
             head_connection_type=head_connection_type,
+        )
+    elif model_name == "clover_diffdead":
+        model = CloverDiffDeadModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
         )
     else:
         print(f"Model {model_name} not implemented.")
