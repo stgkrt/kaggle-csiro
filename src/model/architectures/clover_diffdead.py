@@ -46,7 +46,11 @@ class CloverDiffDeadModel(nn.Module):
         # gdm = green + clover -> dead = total - (green + clover)
         dead_from_sum = output[:, 4] - (output[:, 0] + output[:, 2])
         # 元々のchは補正要因として使う
-        output[:, 1] = ((dead_from_total + dead_from_sum) * 0.5) + (output[:, 1] * 0.1)
+        output_dead = ((dead_from_total + dead_from_sum) * 0.5) + (output[:, 1] * 0.1)
+        output = torch.cat(
+            [output[:, 0:1], output_dead.unsqueeze(1), output[:, 2:5]],
+            dim=1,
+        )
         # clover classification head
         clover_output = self.clover_classification_head(emb)
 
