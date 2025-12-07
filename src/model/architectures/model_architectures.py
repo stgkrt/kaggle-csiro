@@ -5,7 +5,9 @@ from torch import nn
 
 from src.configs import ModelConfig
 from src.model.architectures.clover_diffdead import CloverDiffDeadModel
+from src.model.architectures.clover_diffdead2 import CloverDiffDead2Model
 from src.model.architectures.clover_model import CloverModel
+from src.model.architectures.clover_sum import CloverSumModel
 from src.model.architectures.height_gshh_model import HeightGHSSModel
 from src.model.architectures.height_model import HeightModel
 from src.model.architectures.simple_clover_diff import SimpleCloverDiffModel
@@ -20,6 +22,8 @@ MODEL_TYPE = Union[
     HeightModel,
     CloverModel,
     CloverDiffDeadModel,
+    CloverDiffDead2Model,
+    CloverSumModel,
 ]
 
 
@@ -84,6 +88,22 @@ def get_model_architecture(
         )
     elif model_name == "clover_diffdead":
         model = CloverDiffDeadModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+        )
+    elif model_name == "clover_diffdead2":
+        model = CloverDiffDead2Model(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+        )
+    elif model_name == "clover_sum":
+        model = CloverSumModel(
             backbone_name=backbone_name,
             pretrained=pretrained,
             in_channels=in_channels,

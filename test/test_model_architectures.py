@@ -324,6 +324,8 @@ class TestModelArchitecturesIntegration:
             "height_gshh_model",
             "clover_model",
             "clover_diffdead",
+            "clover_diffdead2",
+            "clover_sum",
         ]
 
         for model_name in model_names:
