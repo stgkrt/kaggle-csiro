@@ -323,7 +323,7 @@ def run_train(config: Config) -> tuple[dict[str, Any], dict[str, Any]]:
 
     # Set seed
     log.info(f"Setting seed: {config.seed}")
-    L.seed_everything(config.seed)
+    L.seed_everything(config.seed, workers=True)
 
     # Setup directories
     setup_directories(config)
