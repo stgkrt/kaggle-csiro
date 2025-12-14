@@ -59,6 +59,9 @@ def load_model_from_checkpoint(
         pretrained=False,
         in_channels=config["in_channels"],
         n_classes=config["n_classes"],
+        emb_dim=config["emb_dim"],
+        aux_dim_reduction_factor=config["aux_dim_reduction_factor"],
+        head_connection_type=config["head_connection_type"],
     )
     if weight_type == "best":
         model_path = Path(f"{fold_dir}/best_weights.pth")
@@ -82,6 +85,20 @@ def create_test_dataloader(
     test_dataset = SimpleDataset(
         df=test_df,
         data_root_dir=data_root_dir,
+        # target_cols=[
+        #     "Dry_Green_g",
+        #     "Dry_Dead_g",
+        #     "Dry_Clover_g",
+        #     "GDM_g",
+        #     "Dry_Total_g",
+        # ],
+        target_cols=[
+            "Dry_Clover_g",
+            "Dry_Dead_g",
+            "Dry_Green_g",
+            "Dry_Total_g",
+            "GDM_g",
+        ],
         phase="test",
         transforms=transforms,
     )
@@ -129,6 +146,13 @@ def predict_fold(
 def create_submission(
     predictions: np.ndarray,
     test_df: pd.DataFrame,
+    # target_cols=[
+    #     "Dry_Green_g",
+    #     "Dry_Dead_g",
+    #     "Dry_Clover_g",
+    #     "GDM_g",
+    #     "Dry_Total_g",
+    # ],
     target_cols: list[str] = [
         "Dry_Clover_g",
         "Dry_Dead_g",
@@ -246,12 +270,12 @@ if __name__ == "__main__":
 
     class EXP_CONFIG:
         # exp_dir = Path("/kaggle/input/csiro-biomass-models/models/exp_000_000")
-        exp_dir = Path("/kaggle/working/exp_000_000")
-        # weight_type = "final"
-        weight_type = "best"
-        # folds = [0, 1, 2, 3, 4]
-        folds = [0]
-        test_csv_path = Path("/kaggle/input/csiro-biomass/train.csv")
+        exp_dir = Path("/kaggle/working/exp_005_cloverclass_003")
+        weight_type = "final"
+        # weight_type = "best"
+        folds = [0, 1, 2, 3, 4]
+        # folds = [0]
+        test_csv_path = Path("/kaggle/input/csiro-biomass/test.csv")
         data_root_dir = Path("/kaggle/input/csiro-biomass")
         output_dir = Path("/kaggle/working/")
         batch_size = 64
@@ -272,7 +296,7 @@ if __name__ == "__main__":
     submission_df.to_csv(EXP_CONFIG.output_dir / "submission.csv", index=False)
     print(f"Submission saved to: {EXP_CONFIG.output_dir / 'submission.csv'}")
     train_df = pd.read_csv(EXP_CONFIG.test_csv_path)
-    train_df = train_df[["sample_id", "target"]]
+    # train_df = train_df[["sample_id", "target"]]
     submission_df = submission_df.rename(columns={"target": "pred"})
     scoring_df = train_df.merge(
         submission_df[["sample_id", "pred"]], on="sample_id", how="left"
