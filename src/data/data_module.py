@@ -4,6 +4,7 @@ from typing import Optional
 import pandas as pd
 from albumentations.core.composition import Compose
 from data.clover_dataset import CloverDataset
+from data.clover_height_dataset import CloverHeightDataset
 from data.height_dataset import HeightDataset
 from data.height_gshh_dataset import HeightGSHHDataset
 from data.simple_dataset import SimpleDataset
@@ -182,7 +183,21 @@ class DataModule(LightningDataModule):
                 transforms=self.valid_transforms,
                 target_cols=self.target_cols,
             )
-
+        elif self.dataset_name == "clover_height":
+            self.data_train = CloverHeightDataset(
+                df=train_df,
+                data_root_dir=self.data_root_dir,
+                phase="fit",
+                transforms=self.train_transforms,
+                target_cols=self.target_cols,
+            )
+            self.data_val = CloverHeightDataset(
+                df=valid_df,
+                data_root_dir=self.data_root_dir,
+                phase="validate",
+                transforms=self.valid_transforms,
+                target_cols=self.target_cols,
+            )
         else:
             raise NotImplementedError(
                 f"Dataset {self.dataset_name} is not implemented."
