@@ -43,12 +43,13 @@ class ModelConfig(BaseSettings):
 class LossConfig(BaseSettings):
     loss_name: str = "mse_loss"
     target_weights: Optional[List[float]] = [0.1, 0.1, 0.1, 0.2, 0.5]
-    aux_weight: float = 0.3
+    aux_clover_weight: float = 0.3
+    aux_height_weight: float = 0.3
     device: str = "cuda"
 
 
 class AugmentationConfig(BaseSettings):
-    random_crop: bool = True
+    random_crop: bool = False
     crop_size: int = 128
     crop_prob: float = 0.5
     horizontal_flip: bool = True
@@ -90,9 +91,6 @@ class DatasetConfig(BaseSettings):
     mixup_prob: float = 0.2
     mixup_alpha: float = 0.2
     mixup_max_len_rate: float = 0.15
-
-    # Augmentation configuration
-    augmentation: AugmentationConfig = Field(default_factory=AugmentationConfig)
 
 
 class SplitConfig(BaseSettings):

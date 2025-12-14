@@ -143,7 +143,7 @@ class TestHeightLoss:
     def test_forward(self):
         """Test forward pass"""
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        loss_fn = HeightLoss(device=device, aux_weight=0.3)
+        loss_fn = HeightLoss(device=device, aux_height_weight=0.3)
 
         batch_size = 4
         n_classes = 5
@@ -176,8 +176,8 @@ class TestHeightLoss:
         targets = {"labels": labels, "height": height_labels}
 
         # Test with different aux weights
-        loss_fn_1 = HeightLoss(device=device, aux_weight=0.1)
-        loss_fn_2 = HeightLoss(device=device, aux_weight=0.5)
+        loss_fn_1 = HeightLoss(device=device, aux_height_weight=0.1)
+        loss_fn_2 = HeightLoss(device=device, aux_height_weight=0.5)
 
         loss_1 = loss_fn_1(inputs, targets)
         loss_2 = loss_fn_2(inputs, targets)
@@ -192,7 +192,7 @@ class TestCloverLoss:
     def test_forward(self):
         """Test forward pass"""
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        loss_fn = CloverLoss(device=device, aux_weight=0.3)
+        loss_fn = CloverLoss(device=device, aux_clover_weight=0.3)
 
         batch_size = 4
         n_classes = 5
@@ -218,7 +218,9 @@ class TestWeightedCloverLoss:
         """Test forward pass"""
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         weights = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.5])
-        loss_fn = WeightedCloverLoss(weights=weights, device=device, aux_weight=0.3)
+        loss_fn = WeightedCloverLoss(
+            weights=weights, device=device, aux_clover_weight=0.3
+        )
 
         batch_size = 4
         n_classes = 5
@@ -276,14 +278,14 @@ class TestLossModule:
 
     def test_height_loss(self):
         """Test height loss creation"""
-        config = LossConfig(loss_name="height_loss", aux_weight=0.3)
+        config = LossConfig(loss_name="height_loss", aux_clover_weight=0.3)
         loss_module = LossModule(config)
 
         assert isinstance(loss_module.loss, HeightLoss)
 
     def test_clover_loss(self):
         """Test clover loss creation"""
-        config = LossConfig(loss_name="clover_loss", aux_weight=0.3)
+        config = LossConfig(loss_name="clover_loss", aux_clover_weight=0.3)
         loss_module = LossModule(config)
 
         assert isinstance(loss_module.loss, CloverLoss)
