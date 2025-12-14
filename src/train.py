@@ -334,8 +334,8 @@ def run_train(config: Config) -> tuple[dict[str, Any], dict[str, Any]]:
     model = create_model(config, valid_df=valid_df)
 
     log.info("Creating data module...")
-    train_augmentations = get_train_transforms(config.dataset.augmentation)
-    valid_augmentations = get_valid_transforms(config.dataset.augmentation)
+    train_augmentations = get_train_transforms(config.augmentation)
+    valid_augmentations = get_valid_transforms(config.augmentation)
     datamodule = create_datamodule(config, train_augmentations, valid_augmentations)
 
     log.info("Setting up callbacks...")
