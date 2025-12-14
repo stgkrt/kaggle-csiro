@@ -6,8 +6,10 @@ from torch import nn
 from src.configs import ModelConfig
 from src.model.architectures.clover_diffdead import CloverDiffDeadModel
 from src.model.architectures.clover_diffdead2 import CloverDiffDead2Model
+from src.model.architectures.clover_diffdead3 import CloverDiffDead3Model
 from src.model.architectures.clover_model import CloverModel
 from src.model.architectures.clover_sum import CloverSumModel
+from src.model.architectures.clover_sum_height import CloverSumHeightModel
 from src.model.architectures.height_gshh_model import HeightGHSSModel
 from src.model.architectures.height_model import HeightModel
 from src.model.architectures.simple_clover_diff import SimpleCloverDiffModel
@@ -23,7 +25,9 @@ MODEL_TYPE = Union[
     CloverModel,
     CloverDiffDeadModel,
     CloverDiffDead2Model,
+    CloverDiffDead3Model,
     CloverSumModel,
+    CloverSumHeightModel,
 ]
 
 
@@ -102,6 +106,14 @@ def get_model_architecture(
             n_classes=n_classes,
             emb_dim=emb_dim,
         )
+    elif model_name == "clover_diffdead3":
+        model = CloverDiffDead3Model(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+        )
     elif model_name == "clover_sum":
         model = CloverSumModel(
             backbone_name=backbone_name,
@@ -109,6 +121,15 @@ def get_model_architecture(
             in_channels=in_channels,
             n_classes=n_classes,
             emb_dim=emb_dim,
+        )
+    elif model_name == "clover_sum_height":
+        model = CloverSumHeightModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            head_connection_type=head_connection_type,
         )
     else:
         print(f"Model {model_name} not implemented.")
