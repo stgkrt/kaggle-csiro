@@ -6,7 +6,7 @@ import pandas as pd
 import pytorch_lightning as L
 import torch
 from timm.utils import ModelEmaV2
-from torchmetrics import MeanMetric
+from torchmetrics import AUROC, MeanMetric
 
 from src.metrics.competition_metrics import CompetitionMetrics, calculate_custom_metric
 from src.model.architectures.model_architectures import ModelArchitectures
@@ -60,6 +60,14 @@ class ModelModule(L.LightningModule):
             self.accelarator = "cpu"
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
+        self.valid_height_preds: torch.Tensor | None = None
+        self.valid_height_labels: torch.Tensor | None = None
+        self.valid_clover_preds: torch.Tensor | None = None
+        self.valid_clover_labels: torch.Tensor | None = None
+        self.train_height_preds: torch.Tensor | None = None
+        self.train_height_labels: torch.Tensor | None = None
+        self.train_clover_preds: torch.Tensor | None = None
+        self.train_clover_labels: torch.Tensor | None = None
         self.best_metrics = -float("inf")
         self.valid_df = valid_df
         self.target_cols = target_cols
@@ -75,31 +83,32 @@ class ModelModule(L.LightningModule):
 
     def model_step(
         self, batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         inputs, targets = batch
         outputs = self.forward(inputs)
         preds = outputs["logits"]  # model output logits
         labels = targets["labels"]  # one-hot encoded labels
         loss = self.criterion(outputs, targets)  # calculate loss
-        return loss, preds, labels
+        return loss, preds, labels, outputs
 
     def model_step_ema(
         self, batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Model step with EMA."""
         inputs, targets = batch
         outputs = self.model_ema.module(inputs)  # type: ignore
         preds = outputs["logits"]  # model output logits
         labels = targets["labels"]  # one-hot encoded labels
         loss = self.criterion(outputs, targets)  # calculate loss
-        return loss, preds, labels
+        return loss, preds, labels, outputs
 
     def training_step(
         self,
         batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]],
         batch_idx: int,
     ) -> torch.Tensor:
-        loss, _, _ = self.model_step(batch)
+        inputs, targets = batch
+        loss, _, _, outputs = self.model_step((inputs, targets))
         self.train_loss(loss)
         self.log(
             "train_loss",
@@ -108,6 +117,36 @@ class ModelModule(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
+
+        # Collect height data
+        height_preds = outputs.get("height")
+        height_labels = targets.get("height")
+        if height_preds is not None and height_labels is not None:
+            if self.train_height_preds is None:
+                self.train_height_preds = height_preds.detach()
+                self.train_height_labels = height_labels.detach()
+            else:
+                self.train_height_preds = torch.cat(
+                    (self.train_height_preds, height_preds.detach())
+                )
+                self.train_height_labels = torch.cat(
+                    (self.train_height_labels, height_labels.detach())
+                )
+
+        # Collect clover data
+        clover_preds = outputs.get("include_clover_preds")
+        clover_labels = targets.get("include_clover_label")
+        if clover_preds is not None and clover_labels is not None:
+            if self.train_clover_preds is None:
+                self.train_clover_preds = clover_preds.detach()
+                self.train_clover_labels = clover_labels.detach()
+            else:
+                self.train_clover_preds = torch.cat(
+                    (self.train_clover_preds, clover_preds.detach())
+                )
+                self.train_clover_labels = torch.cat(
+                    (self.train_clover_labels, clover_labels.detach())
+                )
 
         # EMAの更新
         if self.model_ema is not None:
@@ -118,13 +157,43 @@ class ModelModule(L.LightningModule):
     def validation_step(
         self, batch: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ) -> torch.Tensor:
+        inputs, targets = batch
         if self.model_ema is not None:
-            loss, preds, labels = self.model_step_ema(batch)
+            loss, preds, labels, outputs = self.model_step_ema((inputs, targets))
         else:
-            loss, preds, labels = self.model_step(batch)
+            loss, preds, labels, outputs = self.model_step((inputs, targets))
 
         self.valid_preds = torch.cat((self.valid_preds, preds))
         self.valid_labels = torch.cat((self.valid_labels, labels))
+
+        height_preds = outputs.get("height")
+        height_labels = targets.get("height")
+        if height_preds is not None and height_labels is not None:
+            if self.valid_height_preds is None:
+                self.valid_height_preds = height_preds.detach()
+                self.valid_height_labels = height_labels.detach()
+            else:
+                self.valid_height_preds = torch.cat(
+                    (self.valid_height_preds, height_preds.detach())
+                )
+                self.valid_height_labels = torch.cat(
+                    (self.valid_height_labels, height_labels.detach())
+                )
+
+        clover_preds = outputs.get("include_clover_preds")
+        clover_labels = targets.get("include_clover_label")
+        if clover_preds is not None and clover_labels is not None:
+            if self.valid_clover_preds is None:
+                self.valid_clover_preds = clover_preds.detach()
+                self.valid_clover_labels = clover_labels.detach()
+            else:
+                self.valid_clover_preds = torch.cat(
+                    (self.valid_clover_preds, clover_preds.detach())
+                )
+                self.valid_clover_labels = torch.cat(
+                    (self.valid_clover_labels, clover_labels.detach())
+                )
+
         self.valid_loss(loss)
         self.log(
             "val_loss",
@@ -160,6 +229,7 @@ class ModelModule(L.LightningModule):
     def on_train_epoch_end(self) -> None:
         valid_labels = self.valid_labels.cpu()
         valid_preds = self.valid_preds.cpu()
+        valid_preds = torch.clamp(valid_preds, min=0.0)  # 負の予測値を0にクリップ
         metrics = self.metrics(valid_labels, valid_preds)
         self.log(
             "competition_metrics",
@@ -204,6 +274,59 @@ class ModelModule(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
+
+        # Log train height and clover metrics
+        if self.train_height_preds is not None and self.train_height_labels is not None:
+            self.height_preds = torch.clamp(self.train_height_preds, min=0.0)
+            train_height_diff_mean = (
+                self.train_height_preds - self.train_height_labels
+            ).mean()
+            self.log(
+                "train_height/height_diff_mean",
+                train_height_diff_mean,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
+
+        if self.train_clover_preds is not None and self.train_clover_labels is not None:
+            auroc = AUROC(task="binary")
+            clover_preds_cpu = self.train_clover_preds.cpu()
+            clover_labels_cpu = self.train_clover_labels.cpu()
+            auc_score = auroc(clover_preds_cpu, clover_labels_cpu.long())
+            self.log(
+                "train_clover/auc",
+                auc_score,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
+
+        # Log val height and clover metrics
+        if self.valid_height_preds is not None and self.valid_height_labels is not None:
+            height_diff_mean = (
+                self.valid_height_preds - self.valid_height_labels
+            ).mean()
+            self.log(
+                "val_height/height_diff_mean",
+                height_diff_mean,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
+
+        if self.valid_clover_preds is not None and self.valid_clover_labels is not None:
+            auroc = AUROC(task="binary")
+            clover_preds_cpu = self.valid_clover_preds.cpu()
+            clover_labels_cpu = self.valid_clover_labels.cpu()
+            auc_score = auroc(clover_preds_cpu, clover_labels_cpu.long())
+            self.log(
+                "val_clover/auc",
+                auc_score,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=False,
+            )
         self.save_best(metrics["weighted_r2"])
         # preds/labelsの初期化
         sample_ids_targets = self.valid_df["sample_id"].unique()
@@ -218,6 +341,14 @@ class ModelModule(L.LightningModule):
 
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
+        self.valid_height_preds = None
+        self.valid_height_labels = None
+        self.valid_clover_preds = None
+        self.valid_clover_labels = None
+        self.train_height_preds = None
+        self.train_height_labels = None
+        self.train_clover_preds = None
+        self.train_clover_labels = None
 
         # custom metricの計算とログ出力
         custom_metrics = calculate_custom_metric(oof_df, self.valid_df)
