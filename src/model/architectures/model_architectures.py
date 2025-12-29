@@ -7,6 +7,7 @@ from src.configs import ModelConfig
 from src.model.architectures.clover_diffdead import CloverDiffDeadModel
 from src.model.architectures.clover_diffdead2 import CloverDiffDead2Model
 from src.model.architectures.clover_diffdead3 import CloverDiffDead3Model
+from src.model.architectures.clover_height_pyramid import CloverHeightPyramidModel
 from src.model.architectures.clover_model import CloverModel
 from src.model.architectures.clover_sum import CloverSumModel
 from src.model.architectures.clover_sum_height import CloverSumHeightModel
@@ -130,6 +131,14 @@ def get_model_architecture(
             n_classes=n_classes,
             emb_dim=emb_dim,
             head_connection_type=head_connection_type,
+        )
+    elif model_name == "clover_height_pyramid":
+        model = CloverHeightPyramidModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
         )
     else:
         print(f"Model {model_name} not implemented.")
