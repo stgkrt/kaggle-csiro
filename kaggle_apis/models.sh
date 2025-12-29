@@ -1,6 +1,6 @@
 # upload_mode="create"
 upload_mode="upload"
-exp_name="exp_000_000"
+exp_name="exp_005_cloverclass_003"
 
 if [ "$upload_mode" = "create" ]; then
     echo "Creating a new dataset"
