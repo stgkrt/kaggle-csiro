@@ -482,20 +482,36 @@ def main():
             else:
                 selected_species = "全て"
 
-            # バイオマス範囲フィルター（訓練データのみ）
+            # バイオマス範囲フィルター(訓練データのみ)
             if "target" in df.columns:
                 st.markdown("**バイオマス範囲フィルター**")
-                filter_by_biomass = st.checkbox("総乾物量でフィルター")
-                if filter_by_biomass:
+
+                # 総乾物量フィルター
+                filter_by_total = st.checkbox("総乾物量でフィルター")
+                if filter_by_total:
                     total_biomass_df = df[df["target_name"] == "Dry_Total_g"]
                     min_val = float(total_biomass_df["target"].min())
                     max_val = float(total_biomass_df["target"].max())
-                    biomass_range = st.slider(
+                    total_biomass_range = st.slider(
                         "総乾物量 (g)",
                         min_val,
                         max_val,
                         (min_val, max_val),
                         step=10.0,
+                    )
+
+                # 枯死物フィルター
+                filter_by_dead = st.checkbox("枯死物量でフィルター")
+                if filter_by_dead:
+                    dead_biomass_df = df[df["target_name"] == "Dry_Dead_g"]
+                    min_val_dead = float(dead_biomass_df["target"].min())
+                    max_val_dead = float(dead_biomass_df["target"].max())
+                    dead_biomass_range = st.slider(
+                        "枯死物量 (g)",
+                        min_val_dead,
+                        max_val_dead,
+                        (min_val_dead, max_val_dead),
+                        step=5.0,
                     )
 
         # フィルタリング処理
@@ -511,11 +527,20 @@ def main():
             ].unique()
             unique_images = [img for img in unique_images if img in filtered_images]
 
-        if "target" in df.columns and filter_by_biomass:
+        if "target" in df.columns and filter_by_total:
             total_biomass_df = df[df["target_name"] == "Dry_Total_g"]
             filtered_df = total_biomass_df[
-                (total_biomass_df["target"] >= biomass_range[0])
-                & (total_biomass_df["target"] <= biomass_range[1])
+                (total_biomass_df["target"] >= total_biomass_range[0])
+                & (total_biomass_df["target"] <= total_biomass_range[1])
+            ]
+            filtered_images = filtered_df["image_path"].unique()
+            unique_images = [img for img in unique_images if img in filtered_images]
+
+        if "target" in df.columns and filter_by_dead:
+            dead_biomass_df = df[df["target_name"] == "Dry_Dead_g"]
+            filtered_df = dead_biomass_df[
+                (dead_biomass_df["target"] >= dead_biomass_range[0])
+                & (dead_biomass_df["target"] <= dead_biomass_range[1])
             ]
             filtered_images = filtered_df["image_path"].unique()
             unique_images = [img for img in unique_images if img in filtered_images]
