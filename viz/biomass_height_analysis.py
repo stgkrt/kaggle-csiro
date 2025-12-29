@@ -275,7 +275,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.info(f"📊 Dataset: {len(filtered_df)} samples")
 with col2:
-    st.info(f"📅 Date Range: CSIRO Biomass Dataset")
+    st.info("📅 Date Range: CSIRO Biomass Dataset")
 with col3:
     st.info(
         f"🎯 Height Range: {filtered_df['Height_Ave_cm'].min():.1f}-{filtered_df['Height_Ave_cm'].max():.1f} cm"
