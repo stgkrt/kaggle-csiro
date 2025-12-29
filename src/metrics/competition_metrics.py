@@ -67,18 +67,24 @@ def weighted_r2_score_torch(y_true: torch.Tensor, y_pred: torch.Tensor):
 
 def weighted_r2_score_torch_v2(y_true: torch.Tensor, y_pred: torch.Tensor):
     weights = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.5], device=y_true.device)
-    ss_res = torch.sum(weights * (y_true - y_pred) ** 2)
-    y_bar = torch.sum(weights * y_true) / torch.sum(weights)
-    ss_tot = torch.sum(weights * (y_true - y_bar) ** 2)
+    # calculate overall score
+    preds_flat = y_pred.flatten()
+    true_flat = y_true.flatten()
+    weights_flat = weights.repeat(y_true.shape[0])
+
+    y_bar = torch.sum(weights_flat * true_flat) / torch.sum(weights_flat)
+    ss_res = torch.sum(weights_flat * (true_flat - preds_flat) ** 2)
+    ss_tot = torch.sum(weights_flat * (true_flat - y_bar) ** 2)
     r2 = 1 - ss_res / ss_tot if ss_tot > 0 else torch.tensor(0.0, device=y_true.device)
     # each_scoreの計算
     each_score = []
     for i in range(y_true.shape[-1]):
-        ss_res_i = torch.sum(
-            weights * (y_true[:, i : i + 1] - y_pred[:, i : i + 1]) ** 2
-        )
-        y_bar_i = torch.sum(weights * y_true[:, i : i + 1]) / torch.sum(weights)
-        ss_tot_i = torch.sum(weights * (y_true[:, i : i + 1] - y_bar_i) ** 2)
+        y_true_i = y_true[:, i : i + 1]
+        y_pred_i = y_pred[:, i : i + 1]
+        weights_i = weights[i : i + 1].repeat(y_true.shape[0], 1)
+        y_bar_i = torch.sum(weights_i * y_true_i) / torch.sum(weights_i)
+        ss_res_i = torch.sum(weights_i * (y_true_i - y_pred_i) ** 2)
+        ss_tot_i = torch.sum(weights_i * (y_true_i - y_bar_i) ** 2)
         r2_i = (
             1 - ss_res_i / ss_tot_i
             if ss_tot_i > 0
