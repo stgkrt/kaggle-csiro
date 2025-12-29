@@ -327,6 +327,18 @@ class TestLossIntegration:
             LossConfig(loss_name="weighted_mse_loss"),
             LossConfig(loss_name="smooth_l1_loss"),
             LossConfig(loss_name="weighted_smooth_l1_loss"),
+            LossConfig(loss_name="height_loss", aux_height_weight=0.3),
+            LossConfig(loss_name="clover_loss", aux_clover_weight=0.3),
+            LossConfig(
+                loss_name="log_clover_height_loss",
+                aux_clover_weight=0.3,
+                aux_height_weight=0.3,
+            ),
+            LossConfig(
+                loss_name="clover_height_loss",
+                aux_clover_weight=0.3,
+                aux_height_weight=0.3,
+            ),
         ]
 
         for config in loss_configs:
@@ -335,9 +347,22 @@ class TestLossIntegration:
             # Create tensor directly on device to maintain leaf status
             preds = torch.randn(4, 5, requires_grad=True, device=device)
             labels = torch.randn(4, 5, device=device)
+            height_preds = torch.randn(4, 1, requires_grad=True, device=device)
+            height_labels = torch.randn(4, 1, device=device)
+            clover_preds = torch.randn(4, 1, requires_grad=True, device=device)
+            clover_labels = torch.randint(0, 2, (4, 1), device=device)
+            clover_labels = clover_labels.float()
 
-            inputs = {"logits": preds}
-            targets = {"labels": labels}
+            inputs = {
+                "logits": preds,
+                "height": height_preds,
+                "include_clover_preds": clover_preds,
+            }
+            targets = {
+                "labels": labels,
+                "height": height_labels,
+                "include_clover_label": clover_labels,
+            }
 
             loss = loss_module(inputs, targets)
             loss.backward()
