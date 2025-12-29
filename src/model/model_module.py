@@ -8,6 +8,7 @@ import torch
 from timm.utils import ModelEmaV2
 from torchmetrics import AUROC, MeanMetric
 
+import wandb
 from src.metrics.competition_metrics import CompetitionMetrics, calculate_custom_metric
 from src.model.architectures.model_architectures import ModelArchitectures
 from src.model.losses import LossModule
@@ -179,7 +180,6 @@ class ModelModule(L.LightningModule):
                 self.valid_height_labels = torch.cat(
                     (self.valid_height_labels, height_labels.detach())
                 )
-
         clover_preds = outputs.get("include_clover_preds")
         clover_labels = targets.get("include_clover_label")
         if clover_preds is not None and clover_labels is not None:
@@ -338,7 +338,10 @@ class ModelModule(L.LightningModule):
 
         oof_path = self.oof_dir / "oof.csv"
         oof_df.to_csv(oof_path, index=False)
+        self._log_histogram()
+        self._log_scatter()
 
+        # Reset valid preds and labels for next epoch
         self.valid_preds = torch.Tensor().to(self.accelarator)
         self.valid_labels = torch.Tensor().to(self.accelarator)
         self.valid_height_preds = None
@@ -397,6 +400,36 @@ class ModelModule(L.LightningModule):
         weights_path = self.oof_dir / "final_weights_orig.pth"
         torch.save(self.model.model.state_dict(), weights_path)
         return super().on_train_end()
+
+    def _log_histogram(self) -> None:
+        valid_preds = self.valid_preds.cpu().numpy()
+        # valid_labels = self.valid_labels.cpu().numpy()
+        for i, target_name in enumerate(self.target_cols):
+            hist_pred = wandb.Histogram(valid_preds[:, i])  # type: ignore
+            self.logger.experiment.log({f"histogram_preds_{target_name}": hist_pred})
+        return
+
+    def _log_scatter(self) -> None:
+        valid_preds = self.valid_preds.cpu().numpy()
+        valid_labels = self.valid_labels.cpu().numpy()
+        for i, target_name in enumerate(self.target_cols):
+            data = [
+                [x, y]
+                for (x, y) in zip(valid_labels[:, i], valid_preds[:, i], strict=True)
+            ]
+            table = wandb.Table(data=data, columns=["target", "pred"])  # type: ignore
+            wandb.log(  # type: ignore
+                {
+                    f"scatter_pred_vs_target_{target_name}": wandb.plot.scatter(  # type: ignore
+                        table,
+                        "target",
+                        "pred",
+                        title=f"Pred vs Target Scatter Plot for {target_name}",
+                    )
+                }
+            )
+
+        return
 
     def configure_optimizers(self) -> dict[str, Any]:  # type: ignore
         """Choose what optimizers and learning-rate schedulers

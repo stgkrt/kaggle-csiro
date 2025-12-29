@@ -27,14 +27,16 @@ class CloverSumHeightModel(nn.Module):
         if head_connection_type == "direct":
             self.target_head = nn.Sequential(
                 nn.Linear(self.model.num_features, n_classes - 2),
-                nn.ReLU(),
+                # nn.ReLU(),
+                nn.LeakyReLU(0.01),
             )
             self.clover_classification_head = nn.Sequential(
                 nn.Linear(self.model.num_features, 1),
             )
             self.height_head = nn.Sequential(
                 nn.Linear(self.model.num_features, 1),
-                nn.ReLU(),
+                # nn.ReLU(),
+                nn.LeakyReLU(0.01),
             )
 
         elif head_connection_type == "class_head":

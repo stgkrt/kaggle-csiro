@@ -23,6 +23,26 @@ def weighted_r2_score(y_true: np.ndarray, y_pred: np.ndarray):
     return weighted_r2, r2_scores
 
 
+def weighted_r2_score_v2(y_true: np.ndarray, y_pred: np.ndarray):
+    weights = np.array([0.1, 0.1, 0.1, 0.2, 0.5])
+    weights = np.expand_dims(weights, axis=0)
+    weights = np.tile(weights, (y_true.shape[0], 1))
+    ss_res = np.sum(weights * (y_true - y_pred) ** 2)
+    y_bar = np.sum(weights * y_true) / np.sum(weights)
+    ss_tot = np.sum(weights * (y_true - y_bar) ** 2)
+    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+    # each_scoreの計算
+    each_score = []
+    for i in range(y_true.shape[-1]):
+        ss_res_i = np.sum(weights * (y_true[:, i : i + 1] - y_pred[:, i : i + 1]) ** 2)
+        y_bar_i = np.sum(weights * y_true[:, i : i + 1]) / np.sum(weights)
+        ss_tot_i = np.sum(weights * (y_true[:, i : i + 1] - y_bar_i) ** 2)
+        r2_i = 1 - ss_res_i / ss_tot_i if ss_tot_i > 0 else 0.0
+        each_score.append(r2_i)
+
+    return r2, each_score
+
+
 def weighted_r2_score_torch(y_true: torch.Tensor, y_pred: torch.Tensor):
     """
     y_true, y_pred: shape (N, 5)
@@ -45,6 +65,30 @@ def weighted_r2_score_torch(y_true: torch.Tensor, y_pred: torch.Tensor):
     return weighted_r2, r2_scores
 
 
+def weighted_r2_score_torch_v2(y_true: torch.Tensor, y_pred: torch.Tensor):
+    weights = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.5], device=y_true.device)
+    ss_res = torch.sum(weights * (y_true - y_pred) ** 2)
+    y_bar = torch.sum(weights * y_true) / torch.sum(weights)
+    ss_tot = torch.sum(weights * (y_true - y_bar) ** 2)
+    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else torch.tensor(0.0, device=y_true.device)
+    # each_scoreの計算
+    each_score = []
+    for i in range(y_true.shape[-1]):
+        ss_res_i = torch.sum(
+            weights * (y_true[:, i : i + 1] - y_pred[:, i : i + 1]) ** 2
+        )
+        y_bar_i = torch.sum(weights * y_true[:, i : i + 1]) / torch.sum(weights)
+        ss_tot_i = torch.sum(weights * (y_true[:, i : i + 1] - y_bar_i) ** 2)
+        r2_i = (
+            1 - ss_res_i / ss_tot_i
+            if ss_tot_i > 0
+            else torch.tensor(0.0, device=y_true.device)
+        )
+        each_score.append(r2_i)
+
+    return r2, each_score
+
+
 class CompetitionMetrics:
     def __init__(self):
         pass
@@ -56,7 +100,7 @@ class CompetitionMetrics:
     ) -> Dict[str, float]:
         y_true = y_true.clone()
         y_pred = y_pred.clone()
-        metrics_value, r2_scores = weighted_r2_score_torch(y_true, y_pred)
+        metrics_value, r2_scores = weighted_r2_score_torch_v2(y_true, y_pred)
         metrics_dict = {
             "weighted_r2": float(metrics_value.numpy()),
             "r2_Dry_Green_g": float(r2_scores[0].numpy()),

@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 import pytorch_lightning as L
+import torch
 import yaml  # type: ignore
 from albumentations.core.composition import Compose
 from configs import Config, create_config_from_args
@@ -30,6 +31,7 @@ from src.model.losses import LossModule
 from src.model.model_module import ModelModule
 
 log = RankedLogger(__name__, rank_zero_only=True)
+torch.backends.cudnn.deterministic = True
 
 
 def setup_directories(config: Config) -> None:

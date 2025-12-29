@@ -179,6 +179,51 @@ class CloverHeightLoss(nn.Module):
         return loss
 
 
+class LogCloverHeightLoss(nn.Module):
+    def __init__(
+        self,
+        device: torch.device,
+        aux_clover_weight: float = 0.3,
+        aux_height_weight: float = 0.3,
+    ):
+        super(LogCloverHeightLoss, self).__init__()
+        self.aux_clover_weight = torch.tensor(aux_clover_weight).to(device)
+        self.aux_height_weight = torch.tensor(aux_height_weight).to(device)
+        self.smooth_l1_loss = nn.SmoothL1Loss()
+        self.bce_loss = nn.BCEWithLogitsLoss()
+
+    def forward(
+        self, inputs: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        preds = inputs["logits"]
+        clover_preds = inputs["include_clover_preds"]
+
+        labels = targets["labels"]
+        clover_labels = targets["include_clover_label"]
+
+        height_preds = inputs["height"]
+        height_labels = targets["height"]
+
+        # 対数変換
+        preds = torch.sign(preds) * torch.log1p(torch.abs(preds))
+        labels = torch.sign(labels) * torch.log1p(torch.abs(labels))
+        height_preds = torch.sign(height_preds) * torch.log1p(torch.abs(height_preds))
+        height_labels = torch.sign(height_labels) * torch.log1p(
+            torch.abs(height_labels)
+        )
+
+        target_loss = self.smooth_l1_loss(preds, labels)
+        aux_clover_loss = self.bce_loss(clover_preds, clover_labels)
+        aux_height_loss = self.smooth_l1_loss(height_preds, height_labels)
+
+        loss = (
+            target_loss.mean()
+            + self.aux_clover_weight * (aux_clover_loss.mean())
+            + self.aux_height_weight * (aux_height_loss.mean())
+        )
+        return loss
+
+
 class WeightedCloverHeightLoss(nn.Module):
     def __init__(
         self,
@@ -307,6 +352,12 @@ class LossModule(nn.Module):
             weights = torch.tensor(self.config.target_weights)
             loss = WeightedCloverHeightLoss(
                 weights=weights,
+                device=self.config.device,
+                aux_clover_weight=self.config.aux_clover_weight,
+                aux_height_weight=self.config.aux_height_weight,
+            )
+        elif self.loss_name == "log_clover_height_loss":
+            loss = LogCloverHeightLoss(
                 device=self.config.device,
                 aux_clover_weight=self.config.aux_clover_weight,
                 aux_height_weight=self.config.aux_height_weight,
