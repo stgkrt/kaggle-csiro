@@ -88,9 +88,12 @@ class DatasetConfig(BaseSettings):
     pin_memory: bool = True
 
     # Mixup configuration
-    mixup_prob: float = 0.2
-    mixup_alpha: float = 0.2
-    mixup_max_len_rate: float = 0.15
+    mixup_prob: float = 0.0
+    mixup_alpha: float = 1.0
+    cutmix_prob: float = 0.5
+    cutmix_alpha: float = 1.0
+    mixup_cutmixup_buffer_size: int = 1000
+    mixup_cutmix_n_splits: int = 2
 
 
 class SplitConfig(BaseSettings):

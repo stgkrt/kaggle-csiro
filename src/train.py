@@ -9,7 +9,6 @@ import pytorch_lightning as L
 import torch
 import yaml  # type: ignore
 from albumentations.core.composition import Compose
-from configs import Config, create_config_from_args
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
@@ -19,6 +18,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
 
+from configs import Config, create_config_from_args
 from src.data.augmentations import (
     get_train_transforms,
     get_valid_transforms,
@@ -246,6 +246,12 @@ def create_model(config: Config, valid_df: pd.DataFrame) -> ModelModule:
         scheduler_eta_min=config.trainer.scheduler_eta_min,
         ema_decay=config.trainer.ema_decay,
         ema_enable=config.trainer.ema_enable,
+        mixup_alpha=config.dataset.mixup_alpha,
+        cutmix_alpha=config.dataset.cutmix_alpha,
+        mixup_prob=config.dataset.mixup_prob,
+        cutmix_prob=config.dataset.cutmix_prob,
+        mixup_cutmixup_buffer_size=config.dataset.mixup_cutmixup_buffer_size,
+        mixup_cutmix_n_splits=config.dataset.mixup_cutmix_n_splits,
     )
     return model
 

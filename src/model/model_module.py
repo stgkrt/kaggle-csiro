@@ -9,6 +9,7 @@ from timm.utils import ModelEmaV2
 from torchmetrics import AUROC, MeanMetric
 
 import wandb
+from src.data.mixup_data import MixupCutmixWrapper
 from src.metrics.competition_metrics import CompetitionMetrics, calculate_custom_metric
 from src.model.architectures.model_architectures import ModelArchitectures
 from src.model.losses import LossModule
@@ -32,6 +33,12 @@ class ModelModule(L.LightningModule):
         scheduler_eta_min: float = 1e-9,
         ema_decay: float = 0.998,
         ema_enable: bool = True,
+        mixup_alpha: float = 1.0,
+        cutmix_alpha: float = 1.0,
+        mixup_prob: float = 0.5,
+        cutmix_prob: float = 0.5,
+        mixup_cutmixup_buffer_size: int = 4,
+        mixup_cutmix_n_splits: int = 2,
     ) -> None:
         super().__init__()
         self.model = model_architectures
@@ -72,6 +79,15 @@ class ModelModule(L.LightningModule):
         self.best_metrics = -float("inf")
         self.valid_df = valid_df
         self.target_cols = target_cols
+        # mixup
+        self.mixer = MixupCutmixWrapper(
+            mixup_alpha=mixup_alpha,
+            cutmix_alpha=cutmix_alpha,
+            mixup_prob=mixup_prob,
+            cutmix_prob=cutmix_prob,
+            buffer_size=mixup_cutmixup_buffer_size,  # 全データセット対応
+            n_splits=mixup_cutmix_n_splits,
+        )
 
     def setup(self, stage: str) -> None:
         if self.hparams.compile and stage == "fit":  # type: ignore
@@ -109,6 +125,7 @@ class ModelModule(L.LightningModule):
         batch_idx: int,
     ) -> torch.Tensor:
         inputs, targets = batch
+        inputs, targets = self.mixer(inputs, targets)
         loss, _, _, outputs = self.model_step((inputs, targets))
         self.train_loss(loss)
         self.log(
@@ -338,8 +355,8 @@ class ModelModule(L.LightningModule):
 
         oof_path = self.oof_dir / "oof.csv"
         oof_df.to_csv(oof_path, index=False)
-        self._log_histogram()
-        self._log_scatter()
+        # self._log_histogram()
+        # self._log_scatter()
 
         # Reset valid preds and labels for next epoch
         self.valid_preds = torch.Tensor().to(self.accelarator)
