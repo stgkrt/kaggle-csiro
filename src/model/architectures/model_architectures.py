@@ -8,9 +8,16 @@ from src.model.architectures.clover_diffdead import CloverDiffDeadModel
 from src.model.architectures.clover_diffdead2 import CloverDiffDead2Model
 from src.model.architectures.clover_diffdead3 import CloverDiffDead3Model
 from src.model.architectures.clover_height_pyramid import CloverHeightPyramidModel
+from src.model.architectures.clover_height_pyramid_sum import (
+    CloverHeightPyramidSumModel,
+)
+from src.model.architectures.clover_height_seg import CloverHeightSegModel
 from src.model.architectures.clover_model import CloverModel
 from src.model.architectures.clover_sum import CloverSumModel
-from src.model.architectures.clover_sum_height import CloverSumHeightModel
+from src.model.architectures.clover_sum_height import (
+    CloverSumHeightFrozenModel,
+    CloverSumHeightModel,
+)
 from src.model.architectures.height_gshh_model import HeightGHSSModel
 from src.model.architectures.height_model import HeightModel
 from src.model.architectures.simple_clover_diff import SimpleCloverDiffModel
@@ -29,6 +36,8 @@ MODEL_TYPE = Union[
     CloverDiffDead3Model,
     CloverSumModel,
     CloverSumHeightModel,
+    CloverHeightPyramidModel,
+    CloverHeightPyramidSumModel,
 ]
 
 
@@ -41,6 +50,7 @@ def get_model_architecture(
     emb_dim=128,
     aux_dim_reduction_factor=2,
     head_connection_type="direct",
+    segmentation_depth=1,
 ) -> MODEL_TYPE:
     if model_name == "simple_model":
         model: MODEL_TYPE = SimpleModel(
@@ -132,6 +142,15 @@ def get_model_architecture(
             emb_dim=emb_dim,
             head_connection_type=head_connection_type,
         )
+    elif model_name == "clover_sum_height_frozen":
+        model = CloverSumHeightFrozenModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            head_connection_type=head_connection_type,
+        )
     elif model_name == "clover_height_pyramid":
         model = CloverHeightPyramidModel(
             backbone_name=backbone_name,
@@ -139,6 +158,23 @@ def get_model_architecture(
             in_channels=in_channels,
             n_classes=n_classes,
             emb_dim=emb_dim,
+        )
+    elif model_name == "clover_height_pyramid_sum":
+        model = CloverHeightPyramidSumModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+        )
+    elif model_name == "clover_height_seg":
+        model = CloverHeightSegModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            segmentation_depth=segmentation_depth,
         )
     else:
         print(f"Model {model_name} not implemented.")
@@ -150,6 +186,9 @@ class ModelArchitectures(nn.Module):
     def __init__(self, model_config: ModelConfig):
         super(ModelArchitectures, self).__init__()
         self.config = model_config
+        # configにsegmentation_depthがないときは1をデフォルトとする
+        if not hasattr(self.config, "segmentation_depth"):
+            self.config.segmentation_depth = 1
         self.model = get_model_architecture(
             model_name=self.config.model_name,
             backbone_name=self.config.backbone_name,
@@ -159,6 +198,7 @@ class ModelArchitectures(nn.Module):
             emb_dim=self.config.emb_dim,
             aux_dim_reduction_factor=self.config.aux_dim_reduction_factor,
             head_connection_type=self.config.head_connection_type,
+            segmentation_depth=self.config.segmentation_depth,
         )
 
     def forward(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:

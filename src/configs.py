@@ -38,6 +38,7 @@ class ModelConfig(BaseSettings):
     dropout: float = 0.2
     drop_path_rate: float = 0.3
     head_connection_type: str = "class_head"
+    segmentation_depth: int = 4
 
 
 class LossConfig(BaseSettings):
@@ -45,6 +46,7 @@ class LossConfig(BaseSettings):
     target_weights: Optional[List[float]] = [0.1, 0.1, 0.1, 0.2, 0.5]
     aux_clover_weight: float = 0.3
     aux_height_weight: float = 0.3
+    aux_seg_weight: float = 0.1
     device: str = "cuda"
 
 

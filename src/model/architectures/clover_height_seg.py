@@ -71,10 +71,6 @@ class CloverHeightSegModel(nn.Module):
         )
         # segmentation head (下の層のfeatureをconcatしてup-sampleしていく)
         self.segmentation_depth = segmentation_depth
-        print(f"Segmentation depth: {self.segmentation_depth}")
-        print(
-            f"Encoder out channels for segmentation head: {self.encoder_out_channels}"
-        )
         self.segmentation_head = nn.ModuleList()
         seg_in_channels = self.encoder_out_channels[-1]
         for i in range(segmentation_depth):
@@ -89,9 +85,6 @@ class CloverHeightSegModel(nn.Module):
     def forward(self, input: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         img = input["image"]
         features = self.model(img)
-        print(f"Number of features from encoder: {len(features)}")
-        for i, feat in enumerate(features):
-            print(f"Feature {i} shape: {feat.shape}")
         pyramid_features = []
         for i, feature in enumerate(features[:-1]):
             x = self.feature_extractor[i](feature)  # (batch, emb_dim, 1, 1)
@@ -110,7 +103,6 @@ class CloverHeightSegModel(nn.Module):
             seg_input = torch.cat([output_feature, features[-(i + 2)]], dim=1)
 
         segmentation_output = self.segmentation_head[-1](seg_input)
-        print("Segmentation output shape:", segmentation_output.shape)
 
         output = {
             "logits": output,
