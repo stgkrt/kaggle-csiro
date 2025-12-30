@@ -146,20 +146,20 @@ def predict_fold(
 def create_submission(
     predictions: np.ndarray,
     test_df: pd.DataFrame,
-    # target_cols=[
-    #     "Dry_Green_g",
-    #     "Dry_Dead_g",
-    #     "Dry_Clover_g",
-    #     "GDM_g",
-    #     "Dry_Total_g",
-    # ],
-    target_cols: list[str] = [
-        "Dry_Clover_g",
-        "Dry_Dead_g",
+    target_cols=[
         "Dry_Green_g",
-        "Dry_Total_g",
+        "Dry_Dead_g",
+        "Dry_Clover_g",
         "GDM_g",
+        "Dry_Total_g",
     ],
+    # target_cols: list[str] = [
+    #     "Dry_Clover_g",
+    #     "Dry_Dead_g",
+    #     "Dry_Green_g",
+    #     "Dry_Total_g",
+    #     "GDM_g",
+    # ],
 ) -> pd.DataFrame:
     """Create submission file"""
     # Get unique sample IDs
@@ -255,6 +255,7 @@ def run_inference(
     submission_df = create_submission(
         predictions=predictions,
         test_df=test_df,
+        target_cols=config["dataset"]["target_cols"],
     )
 
     # Save predictions as numpy array
@@ -270,7 +271,8 @@ if __name__ == "__main__":
 
     class EXP_CONFIG:
         # exp_dir = Path("/kaggle/input/csiro-biomass-models/models/exp_000_000")
-        exp_dir = Path("/kaggle/working/exp_005_cloverclass_003")
+        # exp_dir = Path("/kaggle/working/exp_005_cloverclass_003")
+        exp_dir = Path("/kaggle/working/exp_011_003")
         weight_type = "final"
         # weight_type = "best"
         folds = [0, 1, 2, 3, 4]
