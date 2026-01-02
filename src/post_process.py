@@ -429,7 +429,7 @@ def apply_histogram_matching(
 
         # このターゲットを処理するかチェック
         if target_name not in targets_to_process:
-            print(f"  Skipped (not in targets_to_process)")
+            print("  Skipped (not in targets_to_process)")
             # 元の予測値をコピー
             oof_mask = oof_processed["target_name"] == target_name
             oof_processed.loc[oof_mask, "pred_processed"] = oof_processed.loc[
