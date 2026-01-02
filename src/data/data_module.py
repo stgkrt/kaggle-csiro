@@ -5,8 +5,10 @@ import pandas as pd
 from albumentations.core.composition import Compose
 from data.clover_dataset import CloverDataset
 from data.clover_height_dataset import CloverHeightDataset
+from data.clover_height_nvdi_dataset import CloverHeightNVDIDataset
+from data.clover_height_nvdi_seg_dataset import CloverHeightNVDISegDataset
+from data.clover_height_seg_dataset import CloverHeightSegDataset
 from data.height_dataset import HeightDataset
-from data.height_gshh_dataset import HeightGSHHDataset
 from data.simple_dataset import SimpleDataset
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
@@ -153,15 +155,15 @@ class DataModule(LightningDataModule):
                 transforms=self.valid_transforms,
                 target_cols=self.target_cols,
             )
-        elif self.dataset_name == "height_gshh":
-            self.data_train = HeightGSHHDataset(
+        elif self.dataset_name == "clover_height_nvdi":
+            self.data_train = CloverHeightNVDIDataset(
                 df=train_df,
                 data_root_dir=self.data_root_dir,
                 phase="fit",
                 transforms=self.train_transforms,
                 target_cols=self.target_cols,
             )
-            self.data_val = HeightGSHHDataset(
+            self.data_val = CloverHeightNVDIDataset(
                 df=valid_df,
                 data_root_dir=self.data_root_dir,
                 phase="validate",
@@ -192,6 +194,36 @@ class DataModule(LightningDataModule):
                 target_cols=self.target_cols,
             )
             self.data_val = CloverHeightDataset(
+                df=valid_df,
+                data_root_dir=self.data_root_dir,
+                phase="validate",
+                transforms=self.valid_transforms,
+                target_cols=self.target_cols,
+            )
+        elif self.dataset_name == "clover_height_seg":
+            self.data_train = CloverHeightSegDataset(
+                df=train_df,
+                data_root_dir=self.data_root_dir,
+                phase="fit",
+                transforms=self.train_transforms,
+                target_cols=self.target_cols,
+            )
+            self.data_val = CloverHeightSegDataset(
+                df=valid_df,
+                data_root_dir=self.data_root_dir,
+                phase="validate",
+                transforms=self.valid_transforms,
+                target_cols=self.target_cols,
+            )
+        elif self.dataset_name == "clover_height_nvdi_seg":
+            self.data_train = CloverHeightNVDISegDataset(
+                df=train_df,
+                data_root_dir=self.data_root_dir,
+                phase="fit",
+                transforms=self.train_transforms,
+                target_cols=self.target_cols,
+            )
+            self.data_val = CloverHeightNVDISegDataset(
                 df=valid_df,
                 data_root_dir=self.data_root_dir,
                 phase="validate",

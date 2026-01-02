@@ -104,3 +104,38 @@ class AttentionLayer(nn.Module):
         context = time_sum(context)
 
         return context
+
+
+class FiLM(nn.Module):
+    def __init__(self, in_dim: int):
+        super().__init__()
+        hid = max(32, in_dim // 2)
+        self.mlp = nn.Sequential(
+            nn.Linear(in_dim, hid), nn.ReLU(inplace=True), nn.Linear(hid, in_dim * 2)
+        )
+
+    def forward(self, context: torch.Tensor):
+        gb = self.mlp(context)
+        gamma, beta = torch.chunk(gb, 2, dim=1)
+        return gamma, beta
+
+
+class DecoderBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super(DecoderBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU()
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+
+    def forward(self, x):
+        x = self.up(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu(x)
+        return x

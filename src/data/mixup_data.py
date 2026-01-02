@@ -463,8 +463,50 @@ class CutMix:
             keys_to_mix = (
                 self.label_keys if self.label_keys is not None else labels.keys()
             )
+
+            # Handle segmentation_mask separately (apply grid cutmix like images)
+            if "segmentation_mask" in labels:
+                seg_mask = labels["segmentation_mask"]
+                mix_seg_mask = mix_labels["segmentation_mask"]
+
+                # Apply same grid cutmix to segmentation mask
+                mixed_seg_mask = seg_mask.clone()
+
+                # Handle both (B, H, W) and (B, C, H, W) shapes
+                if mixed_seg_mask.dim() == 3:
+                    # (B, H, W) shape
+                    for i in range(self.n_splits):
+                        for j in range(self.n_splits):
+                            if mask[i, j]:
+                                h_start = i * cell_h
+                                h_end = (i + 1) * cell_h if i < self.n_splits - 1 else H
+                                w_start = j * cell_w
+                                w_end = (j + 1) * cell_w if j < self.n_splits - 1 else W
+
+                                mixed_seg_mask[:, h_start:h_end, w_start:w_end] = (
+                                    mix_seg_mask[:, h_start:h_end, w_start:w_end]
+                                )
+                else:
+                    # (B, C, H, W) shape
+                    for i in range(self.n_splits):
+                        for j in range(self.n_splits):
+                            if mask[i, j]:
+                                h_start = i * cell_h
+                                h_end = (i + 1) * cell_h if i < self.n_splits - 1 else H
+                                w_start = j * cell_w
+                                w_end = (j + 1) * cell_w if j < self.n_splits - 1 else W
+
+                                mixed_seg_mask[:, :, h_start:h_end, w_start:w_end] = (
+                                    mix_seg_mask[:, :, h_start:h_end, w_start:w_end]
+                                )
+
+                mixed_labels["segmentation_mask"] = mixed_seg_mask
+
+            # Mix other labels with linear interpolation
             for key in labels.keys():
-                if key in keys_to_mix:
+                if key == "segmentation_mask":
+                    continue  # Already handled above
+                elif key in keys_to_mix:
                     mixed_labels[key] = (
                         actual_lam * labels[key] + (1 - actual_lam) * mix_labels[key]
                     )

@@ -9,7 +9,7 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
 
-class HeightGSHHDataset(Dataset):
+class CloverHeightNVDISegDataset(Dataset):
     """A basic dataset class that can be extended for custom datasets."""
 
     def __init__(
@@ -26,6 +26,22 @@ class HeightGSHHDataset(Dataset):
         self.image_path_list = [
             data_root_dir / Path(image_path) for image_path in self.image_path_list
         ]
+
+        self.mask_dir = Path("/kaggle/input/csiro-biomass/train_masks")
+        self.pure_clover = [
+            "Clover",
+            "SubcloverDalkeith",
+            "SubcloverLosa",
+            "WhiteClover",
+        ]
+        self.mix_clover = [
+            "Phalaris_BarleyGrass_SilverGrass_SpearGrass_Clover_Capeweed",
+            "Phalaris_Clover",
+            "Phalaris_Clover_Ryegrass_Barleygrass_Bromegrass",
+            "Phalaris_Ryegrass_Clover",
+            "Ryegrass_Clover",
+        ]
+        self.include_clover_species = self.pure_clover + self.mix_clover
         # Preserve order while removing duplicates using dict.fromkeys()
         self.image_path_list = list(dict.fromkeys(self.image_path_list))
         self.target_cols = target_cols
@@ -43,9 +59,20 @@ class HeightGSHHDataset(Dataset):
         row = self.df[
             self.df["image_path"] == str(image_path.relative_to(image_path.parents[1]))
         ]
-
+        mask_filename = image_path.stem + ".png"
+        mask_path = self.mask_dir / mask_filename
+        if mask_path.exists():
+            mask = Image.open(mask_path)
+            mask = np.array(mask)
+        else:
+            # Create empty mask if not found
+            mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
+        # 1と0を反転させる:元々はgroundでmaskを作っているが、草を含む部分を1にしたいため
+        mask = 1 - mask
         if self.transforms is not None:
-            image = self.transforms(image=image)["image"]
+            transformed = self.transforms(image=image, mask=mask)
+            image = transformed["image"]
+            mask = transformed["mask"]
 
         inputs = {
             "image": torch.Tensor(image),
@@ -57,12 +84,17 @@ class HeightGSHHDataset(Dataset):
                 row[row["target_name"] == target_name]["target"].values[0]
                 for target_name in self.target_cols
             ]
+            include_clover_label = (
+                1.0 if row["Species"].values[0] in self.include_clover_species else 0.0
+            )
             height = row["Height_Ave_cm"].values[0]
-            gshh = row["Pre_GSHH_NDVI"].values[0]
+            nvdi = row["Pre_GSHH_NDVI"].values[0]
             labels = {
                 "labels": torch.Tensor(target_values),
+                "include_clover_label": torch.Tensor([include_clover_label]),
                 "height": torch.Tensor([height]),
-                "gshh": torch.Tensor([gshh]),
+                "nvdi": torch.Tensor([nvdi]),
+                "segmentation_mask": torch.Tensor(mask).unsqueeze(0),
             }
             return inputs, labels
 
@@ -76,7 +108,7 @@ if __name__ == "__main__":
     df = pd.read_csv(data_config.df_path)
     train_transforms = get_train_transforms(aug_config)
     # print(df.head())
-    dataset = HeightGSHHDataset(
+    dataset = CloverHeightNVDISegDataset(
         df,
         data_root_dir=data_config.data_root_dir,
         target_cols=data_config.target_cols,

@@ -11,18 +11,29 @@ from src.model.architectures.clover_height_pyramid import CloverHeightPyramidMod
 from src.model.architectures.clover_height_pyramid_sum import (
     CloverHeightPyramidSumModel,
 )
-from src.model.architectures.clover_height_seg import CloverHeightSegModel
+from src.model.architectures.clover_height_seg import (
+    CloverHeightSegModel,
+    CloverHeightSegSimpleModel,
+)
 from src.model.architectures.clover_model import CloverModel
 from src.model.architectures.clover_sum import CloverSumModel
 from src.model.architectures.clover_sum_height import (
     CloverSumHeightFrozenModel,
     CloverSumHeightModel,
 )
+from src.model.architectures.clover_sum_height_film import CloverSumHeightFilmModel
+from src.model.architectures.clover_sum_height_nvdi import CloverSumHeightNVDIModel
+from src.model.architectures.clover_sum_height_nvdi_seg import (
+    CloverSumHeightNVDISegModel,
+)
 from src.model.architectures.height_gshh_model import HeightGHSSModel
 from src.model.architectures.height_model import HeightModel
 from src.model.architectures.simple_clover_diff import SimpleCloverDiffModel
 from src.model.architectures.simple_model import SimpleModel
 from src.model.architectures.simple_total import SimpleTotalModel
+from src.model.architectures.tiled_clover_sum_height_film import (
+    TiledCloverSumHeightFilmModel,
+)
 
 MODEL_TYPE = Union[
     SimpleModel,
@@ -38,6 +49,13 @@ MODEL_TYPE = Union[
     CloverSumHeightModel,
     CloverHeightPyramidModel,
     CloverHeightPyramidSumModel,
+    CloverHeightSegModel,
+    CloverHeightSegSimpleModel,
+    CloverSumHeightFrozenModel,
+    CloverSumHeightFilmModel,
+    CloverSumHeightNVDIModel,
+    TiledCloverSumHeightFilmModel,
+    CloverSumHeightNVDISegModel,
 ]
 
 
@@ -50,7 +68,7 @@ def get_model_architecture(
     emb_dim=128,
     aux_dim_reduction_factor=2,
     head_connection_type="direct",
-    segmentation_depth=1,
+    segmentation_depth=4,
 ) -> MODEL_TYPE:
     if model_name == "simple_model":
         model: MODEL_TYPE = SimpleModel(
@@ -142,6 +160,15 @@ def get_model_architecture(
             emb_dim=emb_dim,
             head_connection_type=head_connection_type,
         )
+    elif model_name == "clover_sum_height_nvdi":
+        model = CloverSumHeightNVDIModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            head_connection_type=head_connection_type,
+        )
     elif model_name == "clover_sum_height_frozen":
         model = CloverSumHeightFrozenModel(
             backbone_name=backbone_name,
@@ -174,6 +201,43 @@ def get_model_architecture(
             in_channels=in_channels,
             n_classes=n_classes,
             emb_dim=emb_dim,
+            segmentation_depth=segmentation_depth,
+        )
+    elif model_name == "clover_height_seg_simple":
+        model = CloverHeightSegSimpleModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            segmentation_depth=segmentation_depth,
+        )
+    elif model_name == "clover_sum_height_film":
+        model = CloverSumHeightFilmModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            head_connection_type=head_connection_type,
+        )
+    elif model_name == "tiled_clover_sum_height_film":
+        model = TiledCloverSumHeightFilmModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            head_connection_type=head_connection_type,
+        )
+    elif model_name == "clover_sum_height_nvdi_seg":
+        model = CloverSumHeightNVDISegModel(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_channels=in_channels,
+            n_classes=n_classes,
+            emb_dim=emb_dim,
+            head_connection_type=head_connection_type,
             segmentation_depth=segmentation_depth,
         )
     else:

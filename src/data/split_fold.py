@@ -192,7 +192,7 @@ if __name__ == "__main__":
     stratify_col = "target_bin"
     group_col = "key"
     split_type = "stratified_group_kfold"
-    save_dir = Path("/kaggle/working/splits_stg_species_month_dead_state")
+    save_dir = Path("/kaggle/working/splits_group_date_stg_species")
     if not save_dir.exists():
         save_dir.mkdir(parents=True, exist_ok=True)
     # split_typeを保存
@@ -205,8 +205,10 @@ if __name__ == "__main__":
     #  "Height_Ave_cm_bin", "Species"]
     # group_keys = ["Sampling_Date", "State", "Species"]
     # group_keys = ["season", "State", "Species"]
-    group_keys = ["month", "Species"]
-    stratify_keys = ["target_bin", "Species", "season", "include_clover", "State"]
+    # group_keys = ["month", "Species"]
+    # stratify_keys = ["target_bin", "Species", "season", "include_clover", "State"]
+    group_keys = ["Sampling_Date"]
+    stratify_keys = ["Species"]
 
     # group_keys = ["Sampling_Date", "State"]
     # stratify_keys = ["Species"]

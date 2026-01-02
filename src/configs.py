@@ -47,6 +47,7 @@ class LossConfig(BaseSettings):
     aux_clover_weight: float = 0.3
     aux_height_weight: float = 0.3
     aux_seg_weight: float = 0.1
+    aux_nvdi_weight: float = 0.3
     device: str = "cuda"
 
 
@@ -56,7 +57,7 @@ class AugmentationConfig(BaseSettings):
     crop_prob: float = 0.5
     horizontal_flip: bool = True
     hflip_prob: float = 0.5
-    vertical_flip: bool = False
+    vertical_flip: bool = True
     vflip_prob: float = 0.5
     resize: bool = True
     resize_img_height: int = 512
@@ -66,7 +67,7 @@ class AugmentationConfig(BaseSettings):
     shadow_roi_end: float = 0.5
     num_shadows_lower: int = 1
     num_shadows_upper: int = 2
-    shadow_dimension: int = 50
+    shadow_dimension: int = 3
     shadow_prob: float = 0.5
     brightness_contrast: bool = True
     brightness_limit: float = 0.2

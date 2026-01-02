@@ -14,7 +14,7 @@ def get_train_transforms(aug_config: AugmentationConfig):
     if aug_config.shadow:
         transforms.append(
             A.RandomShadow(
-                shadow_roi=(0, 0.5, 1, 1),
+                shadow_roi=(0.1, 0.1, 1, 1),
                 num_shadows_limit=(
                     aug_config.num_shadows_lower,
                     aug_config.num_shadows_upper,
