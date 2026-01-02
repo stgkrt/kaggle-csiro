@@ -62,6 +62,7 @@ def load_model_from_checkpoint(
         emb_dim=config["emb_dim"],
         aux_dim_reduction_factor=config["aux_dim_reduction_factor"],
         head_connection_type=config["head_connection_type"],
+        segmentation_depth=config.get("segmentation_depth", 4),
     )
     if weight_type == "best":
         model_path = Path(f"{fold_dir}/best_weights.pth")
