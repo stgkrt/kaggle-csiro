@@ -1,7 +1,6 @@
 import torch
-from torch import nn
-
 from configs import LossConfig
+from torch import nn
 
 
 class WeightedMSELoss(nn.Module):

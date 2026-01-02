@@ -9,6 +9,7 @@ import pytorch_lightning as L
 import torch
 import yaml  # type: ignore
 from albumentations.core.composition import Compose
+from configs import Config, create_config_from_args
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
@@ -18,7 +19,6 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
 
-from configs import Config, create_config_from_args
 from src.data.augmentations import (
     get_train_transforms,
     get_valid_transforms,
